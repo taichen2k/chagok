@@ -2,8 +2,8 @@
    - 같은 주소(taichen2k.github.io)의 다른 앱(할수있어·티끌모아·정수리캠)을 건드리지 않음:
      /chagok/ 폴더 요청만 처리, 'chagok-'로 시작하는 보관 파일만 지움
    - 알림(push)은 다루지 않음 — 할수있어 알림과 섞이지 않게 */
-const CACHE='chagok-v10';
-const SHELL=['./','./index.html','./style.css','./app.js','./firebase-config.js','./manifest.webmanifest','./favicon.svg','./icon-192.png',
+const CACHE='chagok-v11';
+const SHELL=['./','./index.html','./style.css','./app.js','./firebase-config.js','./manifest.webmanifest','./favicon.svg','./logo.svg','./icon-192.png',
   './fonts/Pretendard-Regular.subset.woff2','./fonts/Pretendard-Medium.subset.woff2','./fonts/Pretendard-SemiBold.subset.woff2','./fonts/Pretendard-Bold.subset.woff2'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).catch(()=>{}).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('chagok-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
