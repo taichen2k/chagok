@@ -1,21 +1,60 @@
 rules_version = '2';
-// 차곡차곡 보안 규칙: 차량(cars) 문서의 members에 들어 있는 사람만 그 차량과 기록을 읽고 쓸 수 있음
+// 차곡차곡 보안 규칙 (v16)
+// - 차량(cars)은 members에 들어 있는 사람만 읽고 씀
+// - 차량을 만들 때 members는 만든 사람 자신 하나만 (남을 끼워 넣을 수 없음)
+// - 수정할 때 owner·members는 바꿀 수 없음 (가족 공유는 나중에 별도 규칙으로)
+// - 정해진 항목만, 정해진 길이·형식만 저장 (아무 내용이나 큰 문서를 넣지 못하게)
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function isMember(carId) {
-      return signedIn() && request.auth.uid in get(/databases/$(database)/documents/cars/$(carId)).data.members;
+    function carDoc(carId) { return get(/databases/$(database)/documents/cars/$(carId)).data; }
+    function isMember(carId) { return signedIn() && request.auth.uid in carDoc(carId).members; }
+    function str(v, n) { return v is string && v.size() <= n; }
+    function num(v) { return (v is int || v is float) && v >= 0 && v < 100000000; }
+    function day(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    function idOk(v) { return v is string && v.matches('^[A-Za-z0-9]{1,40}$'); }
+
+    function carOk(d) {
+      return d.keys().hasOnly(['owner', 'members', 'car', 'reminders', 'order', 'createdAt'])
+        && d.car is map && d.car.keys().hasOnly(['name', 'plate', 'fuel'])
+        && str(d.car.get('name', ''), 40) && str(d.car.get('plate', ''), 20) && str(d.car.get('fuel', ''), 10)
+        && d.reminders is list && d.reminders.size() <= 30
+        && num(d.get('order', 0))
+        && d.members is list && d.members.size() >= 1 && d.members.size() <= 10
+        && (!('createdAt' in d) || d.createdAt is int);
     }
+    function fuelOk(d, recId) {
+      return d.keys().hasOnly(['id', 'date', 'odo', 'price', 'amount', 'liters', 'full', 'station'])
+        && d.id == recId && day(d.date)
+        && num(d.odo) && num(d.price) && num(d.amount) && num(d.liters)
+        && d.full is bool && str(d.get('station', ''), 60);
+    }
+    function svcOk(d, recId) {
+      return d.keys().hasOnly(['id', 'kind', 'date', 'odo', 'cat', 'title', 'amount', 'shop', 'memo'])
+        && d.id == recId && day(d.date) && d.kind in ['svc', 'exp']
+        && num(d.odo) && num(d.amount)
+        && str(d.cat, 20) && str(d.get('title', ''), 80) && str(d.get('shop', ''), 60) && str(d.get('memo', ''), 200);
+    }
+
     match /cars/{carId} {
       allow read: if signedIn() && request.auth.uid in resource.data.members;
-      allow create: if signedIn()
+      allow create: if signedIn() && idOk(carId)
         && request.resource.data.owner == request.auth.uid
-        && request.auth.uid in request.resource.data.members;
+        && request.resource.data.members == [request.auth.uid]
+        && carOk(request.resource.data);
       allow update: if signedIn() && request.auth.uid in resource.data.members
-        && request.resource.data.owner == resource.data.owner;
+        && request.resource.data.owner == resource.data.owner
+        && request.resource.data.members == resource.data.members
+        && carOk(request.resource.data);
       allow delete: if signedIn() && resource.data.owner == request.auth.uid;
-      match /{sub}/{recId} {
-        allow read, write: if (sub == 'fuels' || sub == 'services') && isMember(carId);
+
+      match /fuels/{recId} {
+        allow read, delete: if isMember(carId);
+        allow create, update: if isMember(carId) && idOk(recId) && fuelOk(request.resource.data, recId);
+      }
+      match /services/{recId} {
+        allow read, delete: if isMember(carId);
+        allow create, update: if isMember(carId) && idOk(recId) && svcOk(request.resource.data, recId);
       }
     }
   }

@@ -5,5 +5,6 @@
 - 앱 주소: https://taichen2k.github.io/chagok/
 - 로그인·동기화: Firebase (프로젝트 chagok-8ec44), 보안 규칙은 `firestore.rules`
 - 기획·버전 이력: [기획요건.md](기획요건.md)
+- 포함한 라이브러리: SheetJS xlsx 0.18.5 (lib/, Apache-2.0, lib/xlsx.LICENSE)
 
 © 2026 티제이컴퍼니. All rights reserved.

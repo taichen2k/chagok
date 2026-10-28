@@ -1,13 +1,13 @@
 
 /* 차곡차곡 — © 2026 티제이컴퍼니. 개발·버전 이력: 기획요건.md
    같은 주소(taichen2k.github.io)의 다른 앱과 섞이지 않게 저장 이름은 모두 chagok. 으로 시작 */
-const APP_VERSION='v15';
+const APP_VERSION='v16';
 const KEY='chagok.data';
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 var Cloud=null;
-const won=n=>Math.round(n||0).toLocaleString('ko-KR');
-const num=(n,d=0)=>(n||0).toLocaleString('ko-KR',{maximumFractionDigits:d,minimumFractionDigits:d});
+const won=n=>Math.round(Number(n)||0).toLocaleString('ko-KR');
+const num=(n,d=0)=>(Number(n)||0).toLocaleString('ko-KR',{maximumFractionDigits:d,minimumFractionDigits:d});
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -44,6 +44,19 @@ function defaultReminders(){return [
 const REM_ORDER=['엔진오일','에어컨필터','타이어 위치교환','배터리','와이퍼'];
 function orderedRems(list){const k=r=>{const i=REM_ORDER.indexOf(r.name);return i<0?REM_ORDER.length:i};
   return list.map((r,i)=>({r,i})).sort((a,b)=>k(a.r)-k(b.r)||a.i-b.i).map(x=>x.r)}
+/* 데이터 정리: 저장소·계정에서 들어온 값을 정해진 형식으로만 받아들임 (보안 점검 v16) */
+const ID_RE=/^[A-Za-z0-9]{1,40}$/,DAY_RE=/^\d{4}-\d{2}-\d{2}$/;
+const N=v=>{v=Number(v);return isFinite(v)&&v>=0&&v<1e8?v:0};
+const T=(v,n)=>String(v??'').slice(0,n);
+function normFuel(r){if(!r||!ID_RE.test(r.id)||!DAY_RE.test(r.date))return null;
+  return{id:r.id,date:r.date,odo:N(r.odo),price:N(r.price),amount:N(r.amount),liters:N(r.liters),full:r.full!==false,station:T(r.station,60)}}
+function normSvc(r){if(!r||!ID_RE.test(r.id)||!DAY_RE.test(r.date))return null;
+  return{id:r.id,kind:r.kind==='exp'?'exp':'svc',date:r.date,odo:N(r.odo),cat:T(r.cat||'기타',20),title:T(r.title,80),amount:N(r.amount),shop:T(r.shop,60),memo:T(r.memo,200)}}
+function normRem(r){if(!r||!ID_RE.test(String(r.id)))return null;return{id:r.id,name:T(r.name,30),km:N(r.km),months:N(r.months),cat:T(r.cat||'점검',20)}}
+function normCarInfo(c){c=c||{};const f=['휘발유','경유','LPG','하이브리드','전기'];return{name:T(c.name,40),plate:T(c.plate,20),fuel:f.includes(c.fuel)?c.fuel:'휘발유'}}
+const keep=a=>(Array.isArray(a)?a:[]).filter(Boolean);
+function normCar(c){if(!c||!ID_RE.test(c.id))return null;
+  return{...c,car:normCarInfo(c.car),reminders:keep((c.reminders||[]).map(normRem)).slice(0,30),fuels:keep((c.fuels||[]).map(normFuel)),services:keep((c.services||[]).map(normSvc)),order:N(c.order)}}
 function blank(){return{id:uid(),car:{name:'내 차',plate:'',fuel:'휘발유'},fuels:[],services:[],
   reminders:defaultReminders()}}
 function sampleGarage(){
@@ -56,6 +69,7 @@ function sampleGarage(){
   return{sample:true,remV:2,cur:a.id,cars:[a,b]}}
 let G,S;
 try{G=JSON.parse(lsGet(KEY))}catch(e){}
+if(G&&Array.isArray(G.cars))G.cars=keep(G.cars.map(normCar));
 if(G&&!G.cars&&G.car){const o=G;G={sample:!!o.sample,cur:null,cars:[{id:uid(),car:o.car,fuels:o.fuels||[],services:o.services||[],reminders:o.reminders||[]}]}}
 if(!G||!Array.isArray(G.cars)||!G.cars.length)G=sampleGarage();
 function pick(){S=G.cars.find(c=>c.id===G.cur)||G.cars[0];G.cur=S.id}
@@ -212,7 +226,7 @@ function renderSet(){
   <h2>데이터</h2><div class="list">
     <button class="row" type="button" data-import="1"><span class="main"><span class="t1">엑셀에서 주유 기록 가져오기</span><span class="t2">.xlsx · .xls · .csv — 지금 선택된 차량(${esc(S.car.plate||S.car.name)})으로 들어가요</span></span><span class="t2">›</span></button>
     <button class="row" type="button" id="exportBtn"><span class="main"><span class="t1">백업 내용 복사</span><span class="t2">지금 차량의 기록을 글자로 복사해요</span></span><span class="t2">›</span></button>
-    ${Cloud&&Cloud.on?'':'<button class="row" type="button" id="resetBtn"><span class="main"><span class="t1" style="color:var(--bad)">이 기기 기록 전체 초기화</span><span class="t2">두 번 눌러야 지워져요</span></span></button>'}</div>
+    ${Cloud&&Cloud.user?'':'<button class="row" type="button" id="resetBtn"><span class="main"><span class="t1" style="color:var(--bad)">이 기기 기록 전체 초기화</span><span class="t2">두 번 눌러야 지워져요</span></span></button>'}</div>
   <h2>앱 설치</h2><div class="list"><div class="rem">${installEvt&&!isStandalone()?'<div class="hd"><span>홈 화면에 설치하면 앱처럼 바로 열려요.</span><button class="btn pri" type="button" data-install="1">설치</button></div>':'<div class="t2" style="font-size:13.5px">'+inst+'</div>'}
     <div class="t2" style="margin-top:10px;font-size:13px">같은 주소(taichen2k.github.io)의 <b>할수있어</b> 알림이 잘 오도록, 폰에 설치한 뒤 <b>설정 → 애플리케이션 → 차곡차곡 → 알림 허용</b>을 켜 두세요. 차곡차곡은 알림을 보내지 않아요.</div></div></div>
   <h2>정보</h2><dl class="kv"><dt>버전</dt><dd>${APP_VERSION}</dd><dt>저장 위치</dt><dd style="font-family:var(--sans)">${Cloud&&Cloud.on?'구글 계정':'이 기기'}</dd><dt>만든 곳</dt><dd style="font-family:var(--sans)">티제이컴퍼니</dd></dl>`;
@@ -235,7 +249,7 @@ function fuelForm(r){
     <label class="f">주유 금액(원)<input id="f_amount" type="number" inputmode="numeric" value="${r.amount}" placeholder="50000"></label>
     <label class="f">리터당 단가(원)<input id="f_price" type="number" inputmode="numeric" value="${r.price}" placeholder="1650"></label>
     <label class="f">주유량(L)<input id="f_liters" type="number" inputmode="decimal" step="0.01" value="${r.liters}" placeholder="30.3"></label>
-    <label class="f">주유소<input id="f_station" type="text" value="${esc(r.station)}" placeholder="예: SK 양재주유소"></label>
+    <label class="f">주유소<input id="f_station" type="text" maxlength="60" value="${esc(r.station)}" placeholder="예: SK 양재주유소"></label>
     <label class="check full"><input id="f_full" type="checkbox" ${r.full?'checked':''}> 가득 주유 (연비 계산에 사용)</label>
     <div class="actions full">${isNew?'<span></span>':`<button type="button" class="btn danger" id="del">삭제</button>`}<div class="r"><button type="button" class="btn" id="cancel">취소</button><button class="btn pri">저장</button></div></div>
   </form>`}
@@ -266,12 +280,12 @@ function svcForm(r,kind){
   return `<h3>${isNew?(r.kind==='exp'?'기타 지출 기록':'정비 기록'):'기록 수정'}</h3>
   <form id="sf" class="fg" style="margin-top:12px">
     <div class="full"><div class="hint" style="margin-bottom:6px">분류</div><div class="tags">${cats.map(c=>`<button type="button" class="chip" data-cat="${c}" aria-pressed="${r.cat===c}">${c}</button>`).join('')}</div></div>
-    <label class="f full">내용<input id="s_title" type="text" value="${esc(r.title)}" placeholder="${r.kind==='exp'?'예: 자동차세 상반기':'예: 엔진오일+필터 교환'}"></label>
+    <label class="f full">내용<input id="s_title" type="text" maxlength="80" value="${esc(r.title)}" placeholder="${r.kind==='exp'?'예: 자동차세 상반기':'예: 엔진오일+필터 교환'}"></label>
     <label class="f">날짜<input id="s_date" type="date" value="${r.date}" required></label>
     <label class="f">주행거리(km)<input id="s_odo" type="number" inputmode="numeric" value="${r.odo}"></label>
     <label class="f">금액(원)<input id="s_amount" type="number" inputmode="numeric" value="${r.amount}" required></label>
-    <label class="f">${r.kind==='exp'?'사용처':'정비소'}<input id="s_shop" type="text" value="${esc(r.shop)}"></label>
-    <label class="f full">메모<input id="s_memo" type="text" value="${esc(r.memo)}" placeholder="부품명, 다음 점검 사항 등"></label>
+    <label class="f">${r.kind==='exp'?'사용처':'정비소'}<input id="s_shop" type="text" maxlength="60" value="${esc(r.shop)}"></label>
+    <label class="f full">메모<input id="s_memo" type="text" maxlength="200" value="${esc(r.memo)}" placeholder="부품명, 다음 점검 사항 등"></label>
     <div class="actions full">${isNew?'<span></span>':`<button type="button" class="btn danger" id="del">삭제</button>`}<div class="r"><button type="button" class="btn" id="cancel">취소</button><button class="btn pri">저장</button></div></div>
   </form>`}
 function bindSvc(r,kind){return el=>{
@@ -284,16 +298,17 @@ function bindSvc(r,kind){return el=>{
     if(!r)leaveSample();
     DB.putSvc(rec);close();render();toast(r?'수정했어요':'정비 기록을 저장했어요')};
 }}
-function openAdd(){
+function busy(){if(Cloud&&Cloud.user&&!Cloud.on){toast('계정 기록을 불러오는 중이에요. 잠시 뒤 다시 해 주세요.');return true}return false}
+function openAdd(){if(busy())return;
   let mode='fuel';
   const draw=()=>{openSheet(`<div class="seg" role="group" aria-label="기록 종류">${[['fuel','주유'],['svc','정비'],['exp','기타 지출']].map(([k,t])=>`<button type="button" data-mode="${k}" aria-pressed="${mode===k}">${t}</button>`).join('')}</div>`+(mode==='fuel'?fuelForm():svcForm(null,mode)),
     el=>{el.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;draw()});(mode==='fuel'?bindFuel(null):bindSvc(null,mode))(el)})};
   draw();
 }
-function openRem(id){
+function openRem(id){if(busy())return;
   const r=id==='new'?{id:uid(),name:'',km:'',months:'',cat:'점검'}:S.reminders.find(x=>x.id===id);
   openSheet(`<h3>교체 주기</h3><form id="rf" class="fg" style="margin-top:12px">
-    <label class="f full">이름<input id="r_name" type="text" value="${esc(r.name)}" placeholder="예: 브레이크 패드" required></label>
+    <label class="f full">이름<input id="r_name" type="text" maxlength="30" value="${esc(r.name)}" placeholder="예: 브레이크 패드" required></label>
     <label class="f">거리 주기(km)<input id="r_km" type="number" inputmode="numeric" value="${r.km||''}" placeholder="10000"></label>
     <label class="f">기간 주기(개월)<input id="r_mo" type="number" inputmode="numeric" value="${r.months||''}" placeholder="12"></label>
     <label class="f full">어떤 정비 기록을 기준으로 할까요?<select id="r_cat">${SVC_CATS.map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}</select></label>
@@ -305,11 +320,11 @@ function openRem(id){
       if(!rec.km&&!rec.months){toast('거리나 기간 중 하나는 입력하세요');return}
       if(id==='new')S.reminders.push(rec);else S.reminders=S.reminders.map(x=>x.id===id?rec:x);DB.putCar(S);close();render();toast('저장했어요')}});
 }
-function openCar(rec){
+function openCar(rec){if(busy())return;
   const isNew=!rec;const c=rec?rec.car:{name:'',plate:'',fuel:'휘발유'};
   openSheet(`<h3>${isNew?'차량 추가':'차량 정보'}</h3><form id="cf" class="fg" style="margin-top:12px">
-    <label class="f full">차 이름<input id="c_name" type="text" value="${esc(c.name)}" placeholder="예: 쏘렌토 MQ4"></label>
-    <label class="f">차량번호<input id="c_plate" type="text" value="${esc(c.plate)}" placeholder="12가 3456" ${isNew?'required':''}></label>
+    <label class="f full">차 이름<input id="c_name" type="text" maxlength="40" value="${esc(c.name)}" placeholder="예: 쏘렌토 MQ4"></label>
+    <label class="f">차량번호<input id="c_plate" type="text" maxlength="20" value="${esc(c.plate)}" placeholder="12가 3456" ${isNew?'required':''}></label>
     <label class="f">연료<select id="c_fuel">${['휘발유','경유','LPG','하이브리드','전기'].map(x=>`<option ${x===c.fuel?'selected':''}>${x}</option>`).join('')}</select></label>
     ${isNew&&G.sample?'<div class="hint full">차량을 추가하면 예시 기록은 지워지고 이 차로 시작해요.</div>':''}
     <div class="actions full">${!isNew&&G.cars.length>1?'<button type="button" class="btn danger" id="del">이 차량 삭제</button>':'<span></span>'}<div class="r"><button type="button" class="btn" id="cancel">취소</button><button class="btn pri">저장</button></div></div></form>`,
@@ -325,7 +340,7 @@ function openCar(rec){
 /* 엑셀 가져오기 */
 const FIELDS=[['date','일자',true],['station','주유소',false],['amount','금액',true],['liters','주유량(L)',true],['price','리터당 단가',false],['odo','주행거리',false]];
 const FRX={price:/단가|리터당|price/i,odo:/주행|누적|km|odo|계기/i,liters:/리터|주유량|수량|\(l\)|ℓ|liter|^l$/i,date:/일자|날짜|일시|date|년월일/i,station:/주유소|상호|장소|가맹점|업체|station/i,amount:/금액|결제|합계|비용|amount|가격/i};
-function loadXLSX(){if(window.XLSX)return Promise.resolve();return new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+function loadXLSX(){if(window.XLSX)return Promise.resolve();return new Promise((ok,no)=>{const s=document.createElement('script');s.src='lib/xlsx.full.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
 const pad=n=>String(n).padStart(2,'0');
 function parseDate(v){
   if(v instanceof Date&&!isNaN(v))return `${v.getFullYear()}-${pad(v.getMonth()+1)}-${pad(v.getDate())}`;
@@ -335,7 +350,7 @@ function parseDate(v){
   if(!m)m=t.match(/(\d{2,4})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/);if(!m)return null;
   let y=+m[1];if(y<100)y+=2000;const mo=+m[2],d=+m[3];if(mo<1||mo>12||d<1||d>31||y<1990||y>2100)return null;return `${y}-${pad(mo)}-${pad(d)}`}
 function parseNum(v){if(typeof v==='number')return v;const t=String(v||'').replace(/[^0-9.\-]/g,'');return t?+t:0}
-function openImport(){
+function openImport(){if(busy())return;
   const st={wb:null,sheet:'',rows:null,hdr:0,map:{},file:'',err:''};
   function loadSheet(name){st.sheet=name;st.rows=XLSX.utils.sheet_to_json(st.wb.Sheets[name],{header:1,raw:true,defval:''});
     let best=0,bi=0;for(let i=0;i<Math.min(15,st.rows.length);i++){const sc=st.rows[i].filter(c=>typeof c==='string'&&Object.values(FRX).some(r=>r.test(c.trim()))).length;if(sc>best){best=sc;bi=i}}
@@ -343,12 +358,12 @@ function openImport(){
     for(const k of ['price','odo','liters','date','station','amount']){const i=hdr.findIndex((c,j)=>!used.has(j)&&FRX[k].test(String(c).trim()));if(i>=0){st.map[k]=i;used.add(i)}}}
   function build(){
     const r={ok:[],dup:0,bad:0,sum:0,min:'',max:''};if(!st.rows)return r;const M=st.map,g=(row,k)=>M[k]>=0&&M[k]!==undefined?row[M[k]]:'';
-    const seen=new Set(G.sample?[]:S.fuels.map(x=>`${x.date}|${Math.round(x.amount)}`));
+    const seen=new Set(G.sample?[]:S.fuels.map(x=>`${x.date}|${Math.round(x.amount)}|${+(+x.liters).toFixed(2)}`));
     for(const row of st.rows.slice(st.hdr+1)){
       if(!row||row.every(c=>c===''||c==null))continue;
       const date=parseDate(g(row,'date')),amount=Math.round(parseNum(g(row,'amount'))),liters=+parseNum(g(row,'liters')).toFixed(2);
       if(!date||amount<=0||liters<=0){r.bad++;continue}
-      const key=`${date}|${amount}`;if(seen.has(key)){r.dup++;continue}seen.add(key);
+      const key=`${date}|${amount}|${liters}`;if(seen.has(key)){r.dup++;continue}seen.add(key);
       const price=Math.round(parseNum(g(row,'price')))||Math.round(amount/liters);
       r.ok.push({id:uid(),date,odo:Math.round(parseNum(g(row,'odo')))||0,price,amount,liters,full:true,station:String(g(row,'station')||'').trim()});r.sum+=amount}
     if(r.ok.length){const ds=r.ok.map(x=>x.date).sort();r.min=ds[0].replaceAll('-','.');r.max=ds.at(-1).replaceAll('-','.')}
@@ -405,6 +420,7 @@ view.addEventListener('click',e=>{
   if(t.dataset.carNew){openCar(null);return}
   if(t.dataset.install){const ev=installEvt;if(ev){ev.prompt();ev.userChoice.finally(()=>{installEvt=null;showInstall();render()})}return}
   if(t.dataset.import){openImport();return}
+  if((t.dataset.editFuel||t.dataset.editSvc)&&busy())return;
   if(t.dataset.editFuel){const r=S.fuels.find(x=>x.id===t.dataset.editFuel);openSheet(fuelForm(r),bindFuel(r))}
   else if(t.dataset.editSvc){const r=S.services.find(x=>x.id===t.dataset.editSvc);openSheet(svcForm(r),bindSvc(r))}
   else if(t.dataset.editRem)openRem(t.dataset.editRem);
@@ -445,33 +461,40 @@ function startCloud(){
       catch(e){if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/web-storage-unsupported'].includes(e.code)){try{await firebase.auth().signInWithRedirect(p);return}catch(e2){e=e2}}toast(authErr(e))}
     },
     async logout(){
+      let synced=false;try{await Promise.race([this.fs.waitForPendingWrites().then(()=>{synced=true}),new Promise(r=>setTimeout(r,6000))])}catch(e){}
+      if(!synced){toast('아직 계정에 올라가지 않은 기록이 있어요. 인터넷에 연결된 뒤 다시 로그아웃해 주세요.');render();return}
       try{await firebase.auth().signOut()}catch(e){}
       try{await this.fs.terminate();await this.fs.clearPersistence()}catch(e){}
       location.reload();
     },
     col(carId,k){return this.fs.collection('cars').doc(carId).collection(k)},
     err(e){console.warn('[chagok]',e);toast(e&&e.code==='permission-denied'?'이 기록을 바꿀 권한이 없어요.':'저장하지 못했어요. 인터넷이 연결되면 다시 시도돼요.')},
-    put(carId,k,rec){this.col(carId,k).doc(rec.id).set(clean(rec)).catch(e=>this.err(e))},
+    put(carId,k,rec){const r=(k==='fuels'?normFuel:normSvc)(rec);if(!r)return;this.col(carId,k).doc(r.id).set(r).catch(e=>this.err(e))},
     del(carId,k,id){this.col(carId,k).doc(id).delete().catch(e=>this.err(e))},
-    carDoc(c,isNew){const d={car:c.car,reminders:c.reminders,order:c.order||0};if(isNew){d.owner=this.user.uid;d.members=[this.user.uid];d.createdAt=Date.now()}return clean(d)},
-    addCar(c){return this.fs.collection('cars').doc(c.id).set(this.carDoc(c,true)).catch(e=>this.err(e))},
+    carDoc(c,isNew){const d={car:normCarInfo(c.car),reminders:keep((c.reminders||[]).map(normRem)).slice(0,30),order:N(c.order)};if(isNew){d.owner=this.user.uid;d.members=[this.user.uid];d.createdAt=Date.now()}return clean(d)},
+    addCar(c,strict){const p=this.fs.collection('cars').doc(c.id).set(this.carDoc(c,true));return strict?p:p.catch(e=>this.err(e))},
+    // 첫 차량: 계정마다 정해진 이름(f+계정번호)으로, 이미 있으면 만들지 않음 → 두 폰에서 동시에 처음 로그인해도 하나만 생김
+    ensureFirst(){const id=('f'+this.user.uid).replace(/[^A-Za-z0-9]/g,'').slice(0,40);const ref=this.fs.collection('cars').doc(id);const n={...blank(),id,order:0};
+      return this.fs.runTransaction(async t=>{const d=await t.get(ref);if(!d.exists)t.set(ref,this.carDoc(n,true))}).catch(e=>this.err(e))},
     putCar(c){this.fs.collection('cars').doc(c.id).set(this.carDoc(c,false),{merge:true}).catch(e=>this.err(e))},
     async delCar(c){
+      if(c.owner&&c.owner!==this.user.uid){toast('이 차량은 만든 사람만 지울 수 있어요.');return}
       this.deleting.add(c.id);(this.subs[c.id]||[]).forEach(f=>f());delete this.subs[c.id];delete this.cars[c.id];
       try{for(const k of ['fuels','services']){const snap=await this.col(c.id,k).get();for(let i=0;i<snap.docs.length;i+=400){const b=this.fs.batch();snap.docs.slice(i,i+400).forEach(d=>b.delete(d.ref));await b.commit()}}
-        await this.fs.collection('cars').doc(c.id).delete()}catch(e){this.err(e)}
+        await this.fs.collection('cars').doc(c.id).delete()}catch(e){this.err(e);this.deleting.delete(c.id)}
     },
-    async bulk(carId,k,list){
-      try{for(let i=0;i<list.length;i+=400){const b=this.fs.batch();list.slice(i,i+400).forEach(r=>b.set(this.col(carId,k).doc(r.id),clean(r)));await b.commit()}}catch(e){this.err(e)}
+    async bulk(carId,k,list,strict){
+      const nf=k==='fuels'?normFuel:normSvc,rows=keep(list.map(nf));
+      try{for(let i=0;i<rows.length;i+=400){const b=this.fs.batch();rows.slice(i,i+400).forEach(r=>b.set(this.col(carId,k).doc(r.id),r));await b.commit()}}catch(e){if(strict)throw e;this.err(e)}
     },
     start(){
       this.loading=true;this.asked=false;
       this.carsUnsub=this.fs.collection('cars').where('members','array-contains',this.user.uid).onSnapshot(snap=>{
         const seen=new Set();
-        snap.forEach(d=>{if(this.deleting.has(d.id))return;seen.add(d.id);const v=d.data();const c=this.cars[d.id]||(this.cars[d.id]={id:d.id,fuels:[],services:[]});
-          c.car=v.car||{name:'내 차',plate:'',fuel:'휘발유'};c.reminders=Array.isArray(v.reminders)?v.reminders:defaultReminders();
-          c.order=v.order||0;c.owner=v.owner;c.members=v.members||[];c.created=v.createdAt||0;
-          if(!this.subs[d.id])this.subs[d.id]=['fuels','services'].map(k=>d.ref.collection(k).onSnapshot(s=>{c[k]=s.docs.map(x=>x.data());this.rebuild()},e=>console.warn('[chagok]',e)));
+        snap.forEach(d=>{if(this.deleting.has(d.id))return;seen.add(d.id);if(!ID_RE.test(d.id))return;const v=d.data();const c=this.cars[d.id]||(this.cars[d.id]={id:d.id,fuels:[],services:[]});
+          c.car=normCarInfo(v.car||{name:'내 차'});c.reminders=Array.isArray(v.reminders)?keep(v.reminders.map(normRem)):defaultReminders();
+          c.order=N(v.order);c.owner=v.owner;c.members=v.members||[];c.created=v.createdAt||0;
+          if(!this.subs[d.id])this.subs[d.id]=['fuels','services'].map(k=>d.ref.collection(k).onSnapshot(s=>{c[k]=keep(s.docs.map(x=>(k==='fuels'?normFuel:normSvc)(x.data())));this.rebuild()},e=>console.warn('[chagok]',e)));
         });
         for(const id of Object.keys(this.cars))if(!seen.has(id)){(this.subs[id]||[]).forEach(f=>f());delete this.subs[id];delete this.cars[id]}
         if(snap.metadata.fromCache&&snap.empty)return; // 서버 답을 기다림
@@ -485,21 +508,24 @@ function startCloud(){
     switchOn(){this.on=true;G={cloud:true,remV:2,cur:lsGet('chagok.cur')||null,cars:[]};this.rebuild()},
     rebuild(){if(!this.on)return;
       const list=Object.values(this.cars).sort((a,b)=>(a.order-b.order)||(a.created-b.created));
-      if(!list.length){const n={...blank(),order:0};this.cars[n.id]=n;list.push(n);this.addCar(n)}
+      if(!list.length){this.ensureFirst();return}
       G.cars=list;pick();render()},
     localSummary(){const L=lastLocal();if(!L||L.sample)return null;const cars=L.cars.filter(c=>c.fuels.length||c.services.length||c.car.plate);if(!cars.length)return null;
       return{L,cars,f:cars.reduce((s,c)=>s+c.fuels.length,0),v:cars.reduce((s,c)=>s+c.services.length,0)}},
     onboard(force){
       const sm=this.localSummary();
-      if(!sm){if(!force&&this.asked===true&&this._auto)return;this._auto=true;const n={...blank(),order:0};this.addCar(n);toast('계정에 첫 차량을 만들었어요');return}
+      if(!sm){this.ensureFirst();return}
       openSheet(`<h3>이 폰의 기록을 계정에 올릴까요?</h3>
         <p class="hint" style="font-size:14px;color:var(--fg)">차량 <b>${sm.cars.length}대</b> · 주유 <b>${num(sm.f)}건</b> · 정비·지출 <b>${num(sm.v)}건</b></p>
         <p class="hint">올리면 다른 폰에서 같은 구글 계정으로 로그인했을 때 똑같이 보여요. 이 폰의 기록은 지워지지 않아요.</p>
         <div class="actions"><button type="button" class="btn" id="ob_new">올리지 않고 새로 시작</button><div class="r"><button type="button" class="btn pri" id="ob_up">계정에 올리기</button></div></div>`,
-      el=>{el.querySelector('#ob_new').onclick=()=>{close();const n={...blank(),order:0};this.addCar(n)};
-        el.querySelector('#ob_up').onclick=async()=>{const b=el.querySelector('#ob_up');b.disabled=true;b.textContent='올리는 중…';
-          let i=0;for(const c of sm.cars){const n={id:c.id,car:c.car,reminders:c.reminders,order:i++};await this.addCar(n);await this.bulk(c.id,'fuels',c.fuels);await this.bulk(c.id,'services',c.services)}
-          lsSet('chagok.uploaded',this.user.uid);close();toast(`차량 ${sm.cars.length}대 기록을 계정에 올렸어요`)}});
+      el=>{el.querySelector('#ob_new').onclick=()=>{close();this.ensureFirst()};
+        el.querySelector('#ob_up').onclick=async()=>{const b=el.querySelector('#ob_up');
+          if(!navigator.onLine){toast('인터넷에 연결된 뒤 올려 주세요.');return}
+          b.disabled=true;b.textContent='올리는 중…';
+          try{let i=0;for(const c0 of sm.cars){const c=normCar(c0);if(!c)continue;await this.addCar({id:c.id,car:c.car,reminders:c.reminders,order:i++},true);await this.bulk(c.id,'fuels',c.fuels,true);await this.bulk(c.id,'services',c.services,true)}
+            close();toast(`차량 ${sm.cars.length}대 기록을 계정에 올렸어요`)}
+          catch(e){console.warn('[chagok]',e);b.disabled=false;b.textContent='다시 올리기';toast('올리지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.')}}});
     }
   };
   Cloud.init();
@@ -515,30 +541,6 @@ function showInstall(){const el=document.getElementById('installBanner');if(!el)
     el.querySelector('#instGo').onclick=async()=>{const ev=installEvt;if(!ev)return;ev.prompt();try{await ev.userChoice}catch(e){}installEvt=null;showInstall()}}
   else el.hidden=true}
 const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
-function openAccount(){
-  const u=Cloud&&Cloud.user;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  const acct=!Cloud||!Cloud.ok?`<p class="hint">로그인 기능을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 열어 주세요.</p>`
-    :u?`<dl class="kv" style="margin-top:12px"><dt>계정</dt><dd style="font-family:var(--sans);font-weight:600;word-break:break-all">${esc(u.email||'')}</dd><dt>상태</dt><dd style="font-family:var(--sans)">${Cloud.on?'<span class="pill ok">실시간 동기화 중</span>':Cloud.loading?'<span class="pill warn">불러오는 중</span>':'<span class="pill warn">시작 전</span>'}</dd><dt>차량</dt><dd>${Cloud.on?G.cars.length+'대':'–'}</dd></dl>
-       <p class="hint">다른 폰에서도 이 구글 계정으로 로그인하면 같은 기록이 실시간으로 보여요.</p>
-       <div class="actions"><span></span><div class="r"><button type="button" class="btn" id="ac_out">로그아웃</button></div></div>`
-    :`<p class="hint" style="font-size:14px;color:var(--fg)">구글 계정으로 로그인하면 <b>여러 폰에서 같은 기록</b>을 실시간으로 볼 수 있어요.</p>
-       <p class="hint">지금 이 폰에 있는 기록은 로그인한 뒤 계정으로 올릴 수 있어요.</p>
-       <div class="actions"><span></span><div class="r"><button type="button" class="btn pri" id="ac_in">구글로 로그인</button></div></div>`;
-  const inst=isStandalone()?`<p class="hint">홈 화면에 설치된 앱으로 열려 있어요.</p>`
-    :installEvt?`<p class="hint">홈 화면에 설치하면 앱처럼 바로 열 수 있어요.</p><div class="actions"><span></span><div class="r"><button type="button" class="btn" id="ac_inst">홈 화면에 설치</button></div></div>`
-    :ios?`<p class="hint">Safari 아래쪽 <b>공유 버튼 → 홈 화면에 추가</b>를 누르면 앱처럼 설치돼요.</p>`
-    :`<p class="hint">Chrome 오른쪽 위 <b>︙ → 홈 화면에 추가(앱 설치)</b>를 누르면 앱처럼 설치돼요.</p>`;
-  openSheet(`<h3>계정·동기화</h3>${acct}
-    <h2>홈 화면 설치</h2>${inst}
-    <div class="banner" style="margin-top:10px;display:block"><b>알림 설정 안내</b><br>같은 주소(taichen2k.github.io)의 <b>할수있어</b> 알림이 잘 오도록, 설치한 뒤 폰 <b>설정 → 애플리케이션 → 차곡차곡 → 알림 → 허용</b>을 켜 두세요. 차곡차곡은 알림을 보내지 않아요.</div>
-    <div class="actions"><span class="hint num">${APP_VERSION}</span><div class="r"><button type="button" class="btn" id="cancel">닫기</button></div></div>`,
-  el=>{el.querySelector('#cancel').onclick=close;
-    const i=el.querySelector('#ac_in');if(i)i.onclick=()=>Cloud.login();
-    const o=el.querySelector('#ac_out');if(o)o.onclick=()=>{if(o.dataset.armed){Cloud.logout()}else{o.dataset.armed='1';o.textContent='한 번 더 누르면 로그아웃'}};
-    const n=el.querySelector('#ac_inst');if(n)n.onclick=async()=>{installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;close()};
-  });
-}
-
 /* 설치용 서비스워커: chagok 폴더 안에서만 동작 */
 if('serviceWorker' in navigator)window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{})});
 
