@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>차곡차곡</title>
+<meta name="description" content="주유·정비 이력·소모품 교체 주기를 차량별로 기록하는 차계부">
+<meta name="theme-color" content="#1d3a52">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="차곡차곡">
+<link rel="preload" href="fonts/Pretendard-Regular.subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" integrity="sha384-AQ3POAMqIhwS81FrUH95ekxqBZHeP5tG2JfEL3+7GuTtfRLWnrRh32UxwzM+//A9" crossorigin="anonymous" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" integrity="sha384-TnlRYaR4JYz/lpaGuaiU61PjNberSA4vjLjtF+oRC/IkohkJqnWxw5EmDSOt1vA1" crossorigin="anonymous" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" integrity="sha384-qn4Jh88HhJA8dplNQyGjOh9OGI4izVhrfj/qIFgaKcdgOE06pXqIKGlsCILZcLAC" crossorigin="anonymous" defer></script>
+<script src="firebase-config.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="logo" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 76 76"><rect x="10" y="48" width="56" height="12" rx="4" fill="#e8890c"/><rect x="16" y="32" width="44" height="12" rx="4" fill="#f4b45c"/><rect x="22" y="16" width="32" height="12" rx="4" fill="#fde1b6"/><circle cx="22" cy="64" r="6" fill="#fff"/><circle cx="54" cy="64" r="6" fill="#fff"/></svg></span><span>차곡차곡<small id="carName">내 차</small></span></div>
+    <div class="right"><button class="plate" id="plateBtn" type="button" aria-label="차량 정보 수정">00가 0000</button><button class="acct" id="acctBtn" type="button" aria-label="구글 로그인"></button></div>
+  </header>
+  <div class="chips" id="carChips" role="group" aria-label="차량 선택"></div>
+  <div class="banner" id="loginBanner" hidden></div>
+  <div class="banner" id="sampleBanner" hidden>
+    <span>지금 보이는 기록은 <b>예시</b>입니다. 내 기록으로 시작하려면 지우세요.</span>
+    <button class="btn" id="clearSample" type="button">예시 지우기</button>
+  </div>
+  <main id="view"></main>
+  <footer>© 2026 티제이컴퍼니. All rights reserved. · <span id="appVer">v10</span></footer>
+</div>
+
+<button class="fab" id="fab" type="button">+ 기록</button>
+<nav class="tabs"><div class="in">
+  <button type="button" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11l8-6 8 6v8H4z"/></svg>홈</button>
+  <button type="button" data-tab="fuel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15M4 20h11M6 9h7M14 9l3 2v6a1.5 1.5 0 0 0 3 0V8l-3-3"/></svg>주유</button>
+  <button type="button" data-tab="svc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.5 5.5a4 4 0 0 0-5 5L4 16l4 4 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z"/></svg>정비</button>
+  <button type="button" data-tab="stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h16M7 16v-5M12 16V7M17 16v-8"/></svg>통계</button>
+</div></nav>
+
+<div id="sheetRoot"></div>
+</body>
+</html>
