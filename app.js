@@ -1,7 +1,7 @@
 
 /* 차곡차곡 — © 2026 티제이컴퍼니. 개발·버전 이력: 기획요건.md
    같은 주소(taichen2k.github.io)의 다른 앱과 섞이지 않게 저장 이름은 모두 chagok. 으로 시작 */
-const APP_VERSION='v14';
+const APP_VERSION='v15';
 const KEY='chagok.data';
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
@@ -119,7 +119,7 @@ function render(){
   else lb.hidden=true;
   document.getElementById('carChips').innerHTML=G.cars.map(c=>`<button type="button" class="chip num" data-car="${c.id}" aria-pressed="${c.id===S.id}">${esc(c.car.plate||c.car.name||'이름 없음')}</button>`).join('')+'<button type="button" class="chip" data-car="new">+ 차량 추가</button>';
   document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false'));
-  view.innerHTML=({home:renderHome,fuel:renderFuel,svc:renderSvc,stat:renderStat})[tab]();
+  view.innerHTML=({home:renderHome,fuel:renderFuel,svc:renderSvc,stat:renderStat,set:renderSet})[tab]();
 }
 function fuelRow(r){return `<button class="row" data-edit-fuel="${r.id}"><span class="ico f">주유</span>
   <span class="main"><span class="t1">${esc(r.station||'주유')}${r.full?'':' <span class="pill warn">부분</span>'}</span>
@@ -163,8 +163,7 @@ function renderSvc(){
   return `<div class="chips">${cats.map(c=>`<button class="chip" data-sf="${esc(c)}" aria-pressed="${svcFilter===c}">${esc(c)}</button>`).join('')}</div>
   <dl class="kv"><dt>건수</dt><dd>${a.length}건</dd><dt>합계</dt><dd>${won(a.reduce((s,x)=>s+x.amount,0))}원</dd></dl>
   <h2>정비·지출 이력</h2><div class="list">${a.length?a.map(svcRow).join(''):'<div class="empty">정비 기록이 없어요. 엔진오일 교환부터 남겨보세요.</div>'}</div>
-  <h2>교체 주기 설정</h2><div class="list">${orderedRems(S.reminders).map(r=>`<button class="row" data-edit-rem="${r.id}"><span class="main"><span class="t1">${esc(r.name)}</span><span class="t2">${r.km?num(r.km)+'km':''}${r.km&&r.months?' 또는 ':''}${r.months?r.months+'개월':''}마다 · 분류 ‘${esc(r.cat)}’ 기록 기준</span></span><span class="t2">수정</span></button>`).join('')}
-  <button class="row" data-edit-rem="new"><span class="main"><span class="t1" style="color:var(--accent)">+ 교체 주기 추가</span></span></button></div>`;
+  <p class="hint">소모품 교체 주기는 <b>설정</b> 탭에서 바꿀 수 있어요.</p>`;
 }
 function renderStat(){
   const months=[];const d=new Date(today());for(let i=5;i>=0;i--){const t=new Date(d.getFullYear(),d.getMonth()-i,1);months.push(`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`)}
@@ -193,8 +192,30 @@ function renderStat(){
   <h2>연도별 주유</h2>${(()=>{const ys=[...new Set(S.fuels.map(x=>x.date.slice(0,4)))].sort().reverse();if(!ys.length)return '<div class="list"><div class="empty">주유 기록이 없어요.</div></div>';
     return `<div class="list">${ys.map(y=>{const a=S.fuels.filter(x=>x.date.startsWith(y));const W=a.reduce((s,x)=>s+x.amount,0),L=a.reduce((s,x)=>s+x.liters,0);
       return `<div class="row" style="cursor:default"><span class="main"><span class="t1 num">${y}년</span><span class="t2 num">${a.length}회 · ${num(L,0)}L · 평균 ${L?won(W/L):'–'}원/L</span></span><span class="amt">${won(W)}원</span></div>`}).join('')}</div>`})()}
-  <h2>데이터</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-import="1" type="button">엑셀 가져오기</button><button class="btn" id="exportBtn" type="button">백업 내용 복사</button>${Cloud&&Cloud.on?'':'<button class="btn danger" id="resetBtn" type="button">전체 초기화</button>'}</div>
-  <p class="hint">${Cloud&&Cloud.on?'구글 계정('+esc(Cloud.user.email||'')+')에 실시간으로 저장돼요. 다른 폰에서 같은 계정으로 로그인하면 똑같이 보여요.':'지금은 이 기기에만 저장돼요. 위쪽 동그라미 버튼에서 구글로 로그인하면 여러 폰에서 같이 볼 수 있어요.'}</p>`;
+  `;
+}
+
+/* 설정 탭 */
+function renderSet(){
+  const u=Cloud&&Cloud.user,ios=/iphone|ipad|ipod/i.test(navigator.userAgent),mob=/android|iphone|ipad|ipod/i.test(navigator.userAgent);
+  const acct=!Cloud||!Cloud.ok?`<div class="list"><div class="empty">로그인 기능을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 열어 주세요.</div></div>`
+   :u?`<div class="list"><div class="row" style="cursor:default"><span class="main"><span class="t1">${esc(u.email||'')}</span><span class="t2">${Cloud.on?'실시간 동기화 중 · 다른 폰에서도 이 계정으로 로그인하면 같은 기록':'계정 기록을 불러오는 중'}</span></span><span class="pill ${Cloud.on?'ok':'warn'}">${Cloud.on?'동기화':'대기'}</span></div>
+      <button class="row" type="button" data-logout="1"><span class="main"><span class="t1">로그아웃</span><span class="t2">이 기기에서만 로그아웃돼요. 기록은 계정에 남아요.</span></span><span class="t2" id="logoutLbl">›</span></button></div>`
+   :`<div class="list"><button class="row" type="button" data-login="1"><span class="main"><span class="t1" style="color:var(--accent)">구글로 로그인</span><span class="t2">여러 폰에서 같은 기록을 실시간으로 봐요. 이 기기 기록은 로그인 뒤 계정으로 올릴 수 있어요.</span></span><span class="t2">›</span></button></div>`;
+  const cars=`<div class="list">${G.cars.map(c=>`<button class="row" type="button" data-car-edit="${c.id}"><span class="ico s">${c.id===S.id?'사용':'차량'}</span><span class="main"><span class="t1">${esc(c.car.plate||'번호판 없음')} · ${esc(c.car.name||'내 차')}</span><span class="t2">${esc(c.car.fuel)} · 주유 ${num(c.fuels.length)}건 · 정비 ${num(c.services.length)}건</span></span><span class="t2">수정</span></button>`).join('')}
+    <button class="row" type="button" data-car-new="1"><span class="main"><span class="t1" style="color:var(--accent)">+ 차량 추가</span></span></button></div>`;
+  const inst=isStandalone()?'홈 화면에 설치된 앱으로 열려 있어요.':installEvt?'':ios?'Safari 아래쪽 <b>공유 → 홈 화면에 추가</b>를 누르세요.':mob?'Chrome <b>︙ → 홈 화면에 추가 → 설치</b>를 누르세요.':'주소창 오른쪽 끝 <b>설치 아이콘</b>(모니터에 화살표)이나 <b>︙ → 전송, 저장 및 공유 → 페이지를 앱으로 설치</b>를 누르세요.';
+  return `<h2>계정·동기화</h2>${acct}
+  <h2>차량 관리</h2>${cars}
+  <h2>소모품 교체 주기 · ${esc(S.car.plate||S.car.name)}</h2><div class="list">${orderedRems(S.reminders).map(r=>`<button class="row" data-edit-rem="${r.id}"><span class="main"><span class="t1">${esc(r.name)}</span><span class="t2">${r.km?num(r.km)+'km':''}${r.km&&r.months?' 또는 ':''}${r.months?r.months+'개월':''}마다 · 분류 ‘${esc(r.cat)}’ 기록 기준</span></span><span class="t2">수정</span></button>`).join('')}
+  <button class="row" data-edit-rem="new"><span class="main"><span class="t1" style="color:var(--accent)">+ 교체 주기 추가</span></span></button></div>`+`
+  <h2>데이터</h2><div class="list">
+    <button class="row" type="button" data-import="1"><span class="main"><span class="t1">엑셀에서 주유 기록 가져오기</span><span class="t2">.xlsx · .xls · .csv — 지금 선택된 차량(${esc(S.car.plate||S.car.name)})으로 들어가요</span></span><span class="t2">›</span></button>
+    <button class="row" type="button" id="exportBtn"><span class="main"><span class="t1">백업 내용 복사</span><span class="t2">지금 차량의 기록을 글자로 복사해요</span></span><span class="t2">›</span></button>
+    ${Cloud&&Cloud.on?'':'<button class="row" type="button" id="resetBtn"><span class="main"><span class="t1" style="color:var(--bad)">이 기기 기록 전체 초기화</span><span class="t2">두 번 눌러야 지워져요</span></span></button>'}</div>
+  <h2>앱 설치</h2><div class="list"><div class="rem">${installEvt&&!isStandalone()?'<div class="hd"><span>홈 화면에 설치하면 앱처럼 바로 열려요.</span><button class="btn pri" type="button" data-install="1">설치</button></div>':'<div class="t2" style="font-size:13.5px">'+inst+'</div>'}
+    <div class="t2" style="margin-top:10px;font-size:13px">같은 주소(taichen2k.github.io)의 <b>할수있어</b> 알림이 잘 오도록, 폰에 설치한 뒤 <b>설정 → 애플리케이션 → 차곡차곡 → 알림 허용</b>을 켜 두세요. 차곡차곡은 알림을 보내지 않아요.</div></div></div>
+  <h2>정보</h2><dl class="kv"><dt>버전</dt><dd>${APP_VERSION}</dd><dt>저장 위치</dt><dd style="font-family:var(--sans)">${Cloud&&Cloud.on?'구글 계정':'이 기기'}</dd><dt>만든 곳</dt><dd style="font-family:var(--sans)">티제이컴퍼니</dd></dl>`;
 }
 
 /* 시트(입력창) */
@@ -370,14 +391,19 @@ function openImport(){
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();window.scrollTo(0,0)});
 document.getElementById('fab').onclick=openAdd;
 document.getElementById('plateBtn').onclick=()=>openCar(S);
-document.getElementById('acctBtn').onclick=()=>openAccount();
+document.getElementById('acctBtn').onclick=()=>{tab='set';render();window.scrollTo(0,0)};
 document.getElementById('loginBanner').onclick=e=>{if(e.target.closest('[data-login]'))Cloud.login();else if(e.target.closest('[data-onboard]'))Cloud.onboard(true)};
 document.getElementById('carChips').onclick=e=>{const b=e.target.closest('[data-car]');if(!b)return;
   if(b.dataset.car==='new'){openCar(null);return}
   if(b.dataset.car!==S.id){G.cur=b.dataset.car;pick();save();fuelFilter='all';svcFilter='전체';render();window.scrollTo(0,0);toast(`${S.car.plate||S.car.name}(으)로 바꿨어요`)}};
 document.getElementById('clearSample').onclick=()=>{G={sample:false,remV:2,cur:null,cars:[blank()]};pick();save();render();toast('예시를 지웠어요. 첫 기록을 남겨보세요')};
 view.addEventListener('click',e=>{
-  const t=e.target.closest('[data-edit-fuel],[data-edit-svc],[data-edit-rem],[data-ff],[data-sf],[data-import],#exportBtn,#resetBtn');if(!t)return;
+  const t=e.target.closest('[data-edit-fuel],[data-edit-svc],[data-edit-rem],[data-ff],[data-sf],[data-import],[data-login],[data-logout],[data-car-edit],[data-car-new],[data-install],#exportBtn,#resetBtn');if(!t)return;
+  if(t.dataset.login){Cloud&&Cloud.login();return}
+  if(t.dataset.logout){if(t.dataset.armed)Cloud.logout();else{t.dataset.armed='1';t.querySelector('.t1').textContent='한 번 더 누르면 로그아웃'}return}
+  if(t.dataset.carEdit){openCar(G.cars.find(c=>c.id===t.dataset.carEdit));return}
+  if(t.dataset.carNew){openCar(null);return}
+  if(t.dataset.install){const ev=installEvt;if(ev){ev.prompt();ev.userChoice.finally(()=>{installEvt=null;showInstall();render()})}return}
   if(t.dataset.import){openImport();return}
   if(t.dataset.editFuel){const r=S.fuels.find(x=>x.id===t.dataset.editFuel);openSheet(fuelForm(r),bindFuel(r))}
   else if(t.dataset.editSvc){const r=S.services.find(x=>x.id===t.dataset.editSvc);openSheet(svcForm(r),bindSvc(r))}
@@ -484,7 +510,7 @@ function lastLocal(){try{return JSON.parse(lsGet(KEY))}catch(e){return null}}
 let installEvt=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;showInstall()});
 window.addEventListener('appinstalled',()=>{installEvt=null;showInstall();toast('홈 화면에 설치했어요')});
-function showInstall(){const el=document.getElementById('installBanner');if(!el)return;
+function showInstall(){const el=document.getElementById('installBanner');if(!el)return;if(tab==='set')render();
   if(installEvt&&!isStandalone()){el.hidden=false;el.innerHTML='<span><b>홈 화면에 설치</b>하면 앱처럼 바로 열 수 있어요.</span><button class="btn pri" type="button" id="instGo">설치</button>';
     el.querySelector('#instGo').onclick=async()=>{const ev=installEvt;if(!ev)return;ev.prompt();try{await ev.userChoice}catch(e){}installEvt=null;showInstall()}}
   else el.hidden=true}
@@ -515,3 +541,19 @@ function openAccount(){
 
 /* 설치용 서비스워커: chagok 폴더 안에서만 동작 */
 if('serviceWorker' in navigator)window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{})});
+
+/* 뒤로가기: 앱이 바로 닫히지 않게
+   ① 열린 입력창부터 닫고 ② 홈이 아닌 탭이면 홈으로 ③ 홈에서는 2초 안에 한 번 더 눌러야 종료 */
+(function(){
+  const guard=()=>{try{history.pushState({chagok:1},'')}catch(e){}};
+  try{history.replaceState({chagok:0},'');guard()}catch(e){}
+  let armT=null;
+  const disarm=()=>{if(armT){clearTimeout(armT);armT=null;guard()}};
+  document.addEventListener('click',disarm,true);
+  window.addEventListener('popstate',()=>{
+    if(root.querySelector('.sheet')){close();guard();return}
+    if(tab!=='home'){tab='home';render();window.scrollTo(0,0);guard();return}
+    toast('한 번 더 누르면 종료돼요');
+    armT=setTimeout(()=>{armT=null;guard()},2000);
+  });
+})();
