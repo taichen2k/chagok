@@ -1,7 +1,7 @@
 
 /* 차곡차곡 — © 2026 티제이컴퍼니. 개발·버전 이력: 기획요건.md
    같은 주소(taichen2k.github.io)의 다른 앱과 섞이지 않게 저장 이름은 모두 chagok. 으로 시작 */
-const APP_VERSION='v18';
+const APP_VERSION='v19';
 const KEY='chagok.data';
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
@@ -171,6 +171,51 @@ function renderFuel(){
   <dl class="kv"><dt>주유 횟수</dt><dd>${a.length}회</dd><dt>넣은 양</dt><dd>${num(L,1)} L</dd><dt>주유 금액</dt><dd>${won(W)}원</dd><dt>평균 단가</dt><dd>${L?won(W/L):'–'}원/L</dd></dl>
   <h2>주유 내역</h2><div class="list">${a.length?a.map(fuelRow).join(''):'<div class="empty">이 기간에 주유 기록이 없어요.</div>'}</div>
   <p class="hint">연비는 주행거리를 적은 ‘가득 주유’ 기록 사이로 계산해요. 주행거리가 없는 예전 기록은 금액·주유량 통계에만 쓰여요. 일부만 넣었을 땐 ‘가득 주유’를 끄고 저장하세요.</p>`;
+}
+/* 기록 검색: 정비·지출·주유를 한 번에 (내용·분류·정비소·주유소·메모·날짜·금액) */
+let srchQ='',srchAll=false,srchType='all';
+const SRCH_TYPES=[['all','전체'],['svc','정비'],['exp','기타 지출'],['fuel','주유']];
+function searchRecords(q,all){
+  const terms=q.toLowerCase().replace(/[./]/g,'-').split(/\s+/).filter(Boolean);if(!terms.length&&srchType==='all')return[];
+  const cars=all?G.cars:[S],out=[],ty=srchType;
+  for(const c of cars){
+    const tag=c.car.plate||c.car.name||'';
+    for(const r of c.services)if(ty==='all'||ty===r.kind)out.push({t:'s',r,c,tag,hay:[r.title,r.cat,r.shop,r.memo,r.date,r.kind==='exp'?'지출':'정비',String(r.amount),won(r.amount),String(r.odo||'')].join(' ').toLowerCase()});
+    if(ty==='all'||ty==='fuel')for(const r of c.fuels)out.push({t:'f',r,c,tag,hay:[r.station,'주유',r.date,String(r.amount),won(r.amount),String(r.liters),String(r.odo||'')].join(' ').toLowerCase()});
+  }
+  return out.filter(x=>terms.every(t=>x.hay.includes(t))).sort((a,b)=>a.r.date<b.r.date?1:a.r.date>b.r.date?-1:0)}
+function searchHTML(){
+  const res=searchRecords(srchQ,srchAll);if(!srchActive())return'';
+  const sum=res.reduce((s,x)=>s+(+x.r.amount||0),0),shown=res.slice(0,200);
+  return `<dl class="kv"><dt>찾은 기록</dt><dd>${num(res.length)}건</dd><dt>금액 합계</dt><dd>${won(sum)}원</dd></dl>
+  <div class="list" style="margin-top:10px">${shown.length?shown.map(x=>{const row=x.t==='s'?svcRow(x.r):fuelRow(x.r);
+      return (srchAll&&G.cars.length>1)?row.replace('<span class="main">',`<span class="main"><span class="t2" style="font-weight:600">${esc(x.tag)}</span>`).replace(/data-edit-(fuel|svc)="/,`data-car-of="${x.c.id}" data-edit-$1="`):row}).join('')
+    :'<div class="empty">찾는 기록이 없어요. 다른 낱말로 찾아보세요.</div>'}</div>${res.length>200?'<p class="hint">최근 200건만 보여 드려요. 낱말을 더 넣어 좁혀 보세요.</p>':''}`}
+const srchActive=()=>!!srchQ.trim()||srchType!=='all';
+/* 검색 화면: 위쪽 돋보기 버튼 하나로 어느 탭에서든 열림 */
+function openSearch(){
+  if(G.cars.length>1&&!openSearch.used){srchAll=true;openSearch.used=true}
+  openSheet(`<h3>기록 검색</h3>
+    <div class="srch" style="margin-top:10px"><input id="srchIn" type="search" inputmode="search" maxlength="40" placeholder="예: 엔진오일, 보험, 2024-05, SK" value="${esc(srchQ)}" aria-label="찾을 낱말"></div>
+    <div class="chips" role="group" aria-label="찾을 기록 종류">${SRCH_TYPES.map(([k,t])=>`<button type="button" class="chip" data-st="${k}" aria-pressed="${srchType===k}">${t}</button>`).join('')}
+      ${G.cars.length>1?`<label class="check" style="font-size:13px;margin-left:auto"><input id="srchAll" type="checkbox" ${srchAll?'checked':''}> 모든 차량</label>`:''}</div>
+    <div class="hint" style="margin:-2px 2px 10px">내용·분류·정비소·주유소·메모·날짜·금액으로 찾아요. 낱말을 띄어 쓰면 모두 들어간 기록만, 종류만 고르면 그 기록 전체가 보여요.</div>
+    <div id="srchRes">${searchHTML()||'<div class="list"><div class="empty">찾을 낱말을 넣거나 종류를 골라 보세요.</div></div>'}</div>
+    <div class="actions"><span></span><div class="r"><button type="button" class="btn" id="cancel">닫기</button></div></div>`,
+  el=>{const inp=el.querySelector('#srchIn');setTimeout(()=>inp.focus(),50);
+    el.querySelector('#cancel').onclick=close;
+    const upd=()=>{el.querySelector('#srchRes').innerHTML=searchHTML()||'<div class="list"><div class="empty">찾을 낱말을 넣거나 종류를 골라 보세요.</div></div>';
+      el.querySelectorAll('[data-st]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.st===srchType))};
+    inp.oninput=()=>{srchQ=inp.value;upd()};
+    const al=el.querySelector('#srchAll');if(al)al.onchange=()=>{srchAll=al.checked;upd()};
+    el.querySelector('.sheet').addEventListener('click',e=>{
+      const st=e.target.closest('[data-st]');if(st){srchType=srchType===st.dataset.st&&st.dataset.st!=='all'?'all':st.dataset.st;upd();return}
+      const row=e.target.closest('[data-edit-fuel],[data-edit-svc]');if(!row)return;
+      if(busy())return;
+      if(row.dataset.carOf&&row.dataset.carOf!==S.id){G.cur=row.dataset.carOf;pick();save();render()}
+      if(row.dataset.editFuel){const r=S.fuels.find(x=>x.id===row.dataset.editFuel);if(r)openSheet(fuelForm(r),bindFuel(r))}
+      else{const r=S.services.find(x=>x.id===row.dataset.editSvc);if(r)openSheet(svcForm(r),bindSvc(r))}});
+  });
 }
 function renderSvc(){
   const cats=['전체',...new Set(S.services.map(x=>x.cat))];
@@ -468,6 +513,7 @@ function openImport(){if(busy())return;
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();window.scrollTo(0,0)});
 document.getElementById('fab').onclick=openAdd;
 document.getElementById('plateBtn').onclick=()=>openCar(S);
+document.getElementById('srchBtn').onclick=()=>openSearch();
 document.getElementById('acctBtn').onclick=()=>{tab='set';render();window.scrollTo(0,0)};
 document.getElementById('loginBanner').onclick=e=>{if(e.target.closest('[data-logout2]')){firebase.auth().signOut().then(()=>location.reload());return}if(e.target.closest('[data-login]'))Cloud.login();else if(e.target.closest('[data-onboard]'))Cloud.onboard(true)};
 document.getElementById('carChips').onclick=e=>{const b=e.target.closest('[data-car]');if(!b)return;
