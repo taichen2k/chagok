@@ -1,7 +1,7 @@
 
 /* 차곡차곡 — © 2026 티제이컴퍼니. 개발·버전 이력: 기획요건.md
    같은 주소(taichen2k.github.io)의 다른 앱과 섞이지 않게 저장 이름은 모두 chagok. 으로 시작 */
-const APP_VERSION='v12';
+const APP_VERSION='v13';
 const KEY='chagok.data';
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
@@ -482,7 +482,12 @@ function lastLocal(){try{return JSON.parse(lsGet(KEY))}catch(e){return null}}
 
 /* 계정·설치 화면 */
 let installEvt=null;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e});
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;showInstall()});
+window.addEventListener('appinstalled',()=>{installEvt=null;showInstall();toast('홈 화면에 설치했어요')});
+function showInstall(){const el=document.getElementById('installBanner');if(!el)return;
+  if(installEvt&&!isStandalone()){el.hidden=false;el.innerHTML='<span><b>홈 화면에 설치</b>하면 앱처럼 바로 열 수 있어요.</span><button class="btn pri" type="button" id="instGo">설치</button>';
+    el.querySelector('#instGo').onclick=async()=>{const ev=installEvt;if(!ev)return;ev.prompt();try{await ev.userChoice}catch(e){}installEvt=null;showInstall()}}
+  else el.hidden=true}
 const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 function openAccount(){
   const u=Cloud&&Cloud.user;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
