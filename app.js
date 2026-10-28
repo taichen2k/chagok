@@ -1,7 +1,7 @@
 
 /* 차곡차곡 — © 2026 티제이컴퍼니. 개발·버전 이력: 기획요건.md
    같은 주소(taichen2k.github.io)의 다른 앱과 섞이지 않게 저장 이름은 모두 chagok. 으로 시작 */
-const APP_VERSION='v17';
+const APP_VERSION='v18';
 const KEY='chagok.data';
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
@@ -226,7 +226,7 @@ function renderSet(){
   <button class="row" data-edit-rem="new"><span class="main"><span class="t1" style="color:var(--accent)">+ 교체 주기 추가</span></span></button></div>`+`
   <h2>데이터</h2><div class="list">
     <button class="row" type="button" data-import="1"><span class="main"><span class="t1">엑셀에서 주유 기록 가져오기</span><span class="t2">.xlsx · .xls · .csv — 지금 선택된 차량(${esc(S.car.plate||S.car.name)})으로 들어가요</span></span><span class="t2">›</span></button>
-    <button class="row" type="button" data-backup="1"><span class="main"><span class="t1">백업 파일 저장</span><span class="t2">모든 차량의 기록을 파일 하나로 내려받아요 · 마지막 백업: ${esc(lsGet('chagok.lastBackup')||'아직 없음')}</span></span><span class="t2">›</span></button>
+    <button class="row" type="button" data-backup="1"><span class="main"><span class="t1">백업 파일 저장</span><span class="t2">모든 차량의 기록을 파일 하나(차곡차곡_연월일_시분초.json)로 내려받아요 · 마지막 백업: ${esc(lsGet('chagok.lastBackup')||'아직 없음')}</span></span><span class="t2">›</span></button>
     <button class="row" type="button" data-restore="1"><span class="main"><span class="t1">백업에서 복구</span><span class="t2">백업 파일(또는 복사해 둔 백업 내용)로 기록을 되살려요. 이미 있는 기록은 건너뛰어요</span></span><span class="t2">›</span></button>
     ${Cloud&&Cloud.user?'':'<button class="row" type="button" id="resetBtn"><span class="main"><span class="t1" style="color:var(--bad)">이 기기 기록 전체 초기화</span><span class="t2">두 번 눌러야 지워져요</span></span></button>'}</div>
   <h2>앱 설치</h2><div class="list"><div class="rem">${installEvt&&!isStandalone()?'<div class="hd"><span>홈 화면에 설치하면 앱처럼 바로 열려요.</span><button class="btn pri" type="button" data-install="1">설치</button></div>':'<div class="t2" style="font-size:13.5px">'+inst+'</div>'}
@@ -342,10 +342,12 @@ function openCar(rec){if(busy())return;
 /* 백업 · 복구 */
 function backupData(){return{app:'chagok',format:1,version:APP_VERSION,exportedAt:new Date().toISOString(),
   cars:G.cars.map(c=>({id:c.id,order:c.order||0,car:c.car,reminders:c.reminders,fuels:c.fuels,services:c.services}))}}
+/* 백업 파일 이름: 차곡차곡_연월일_시분초.json (예: 차곡차곡_20261028_192030.json) */
+function backupName(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `차곡차곡_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.json`}
 function saveBackup(){
   if(G.sample){toast('지금은 예시 기록이라 백업할 내용이 없어요.');return}
   try{const blob=new Blob([JSON.stringify(backupData(),null,1)],{type:'application/json'});const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);a.download=`chagok-backup-${today().replaceAll('-','')}.json`;document.body.appendChild(a);a.click();
+    a.href=URL.createObjectURL(blob);a.download=backupName();document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);lsSet('chagok.lastBackup',today());render();toast('백업 파일을 저장했어요 (다운로드 폴더)')}
   catch(e){toast('백업 파일을 만들지 못했어요.')}}
 function parseBackup(txt){let o;try{o=JSON.parse(txt)}catch(e){return null}
