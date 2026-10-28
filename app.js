@@ -1,7 +1,7 @@
 
 /* 차곡차곡 — © 2026 티제이컴퍼니. 개발·버전 이력: 기획요건.md
    같은 주소(taichen2k.github.io)의 다른 앱과 섞이지 않게 저장 이름은 모두 chagok. 으로 시작 */
-const APP_VERSION='v11';
+const APP_VERSION='v12';
 const KEY='chagok.data';
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
