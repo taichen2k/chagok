@@ -1,5 +1,5 @@
 rules_version = '2';
-// 차곡차곡 보안 규칙 (v17) — 허용된 구글 계정만 사용
+// 차곡차곡 보안 규칙 (v21) — 허용된 구글 계정만 사용, 서류 사진 포함
 // - 차량(cars)은 members에 들어 있는 사람만 읽고 씀
 // - 차량을 만들 때 members는 만든 사람 자신 하나만 (남을 끼워 넣을 수 없음)
 // - 수정할 때 owner·members는 바꿀 수 없음 (가족 공유는 나중에 별도 규칙으로)
@@ -32,7 +32,8 @@ service cloud.firestore {
         && d.full is bool && str(d.get('station', ''), 60);
     }
     function svcOk(d, recId) {
-      return d.keys().hasOnly(['id', 'kind', 'date', 'odo', 'cat', 'title', 'amount', 'shop', 'memo'])
+      return d.keys().hasOnly(['id', 'kind', 'date', 'odo', 'cat', 'title', 'amount', 'shop', 'memo', 'photos'])
+        && (!('photos' in d) || (d.photos is list && d.photos.size() <= 5))
         && d.id == recId && day(d.date) && d.kind in ['svc', 'exp']
         && num(d.odo) && num(d.amount)
         && str(d.cat, 20) && str(d.get('title', ''), 80) && str(d.get('shop', ''), 60) && str(d.get('memo', ''), 200);
@@ -61,6 +62,16 @@ service cloud.firestore {
       match /fuels/{recId} {
         allow read, delete: if isMember(carId);
         allow create, update: if isMember(carId) && idOk(recId) && fuelOk(request.resource.data, recId);
+      }
+      // 서류 사진: 사진 하나에 문서 하나 (큰 사진 900KB·작은 사진 60KB 이하)
+      match /photos/{pid} {
+        allow read, delete: if isMember(carId);
+        allow create: if isMember(carId) && idOk(pid)
+          && request.resource.data.keys().hasOnly(['id', 'rec', 'at', 'w', 'h', 'data', 'thumb'])
+          && request.resource.data.id == pid && idOk(request.resource.data.rec) && request.resource.data.at is int
+          && num(request.resource.data.w) && num(request.resource.data.h)
+          && request.resource.data.data is bytes && request.resource.data.data.size() < 900000
+          && request.resource.data.thumb is bytes && request.resource.data.thumb.size() < 60000;
       }
       match /services/{recId} {
         allow read, delete: if isMember(carId);

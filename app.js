@@ -1,7 +1,7 @@
 
 /* 차곡차곡 — © 2026 티제이컴퍼니. 개발·버전 이력: 기획요건.md
    같은 주소(taichen2k.github.io)의 다른 앱과 섞이지 않게 저장 이름은 모두 chagok. 으로 시작 */
-const APP_VERSION='v20';
+const APP_VERSION='v21';
 const KEY='chagok.data';
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
@@ -51,7 +51,7 @@ const T=(v,n)=>String(v??'').slice(0,n);
 function normFuel(r){if(!r||!ID_RE.test(r.id)||!DAY_RE.test(r.date))return null;
   return{id:r.id,date:r.date,odo:N(r.odo),price:N(r.price),amount:N(r.amount),liters:N(r.liters),full:r.full!==false,station:T(r.station,60)}}
 function normSvc(r){if(!r||!ID_RE.test(r.id)||!DAY_RE.test(r.date))return null;
-  return{id:r.id,kind:r.kind==='exp'?'exp':'svc',date:r.date,odo:N(r.odo),cat:T(r.cat||'기타',20),title:T(r.title,80),amount:N(r.amount),shop:T(r.shop,60),memo:T(r.memo,200)}}
+  return{id:r.id,kind:r.kind==='exp'?'exp':'svc',date:r.date,odo:N(r.odo),cat:T(r.cat||'기타',20),title:T(r.title,80),amount:N(r.amount),shop:T(r.shop,60),memo:T(r.memo,200),photos:(Array.isArray(r.photos)?r.photos:[]).filter(x=>ID_RE.test(String(x))).slice(0,5)}}
 function normRem(r){if(!r||!ID_RE.test(String(r.id)))return null;return{id:r.id,name:T(r.name,30),km:N(r.km),months:N(r.months),cat:T(r.cat||'점검',20)}}
 function normCarInfo(c){c=c||{};const f=['휘발유','경유','LPG','하이브리드','전기'];return{name:T(c.name,40),plate:T(c.plate,20),fuel:f.includes(c.fuel)?c.fuel:'휘발유'}}
 const keep=a=>(Array.isArray(a)?a:[]).filter(Boolean);
@@ -141,7 +141,7 @@ function fuelRow(r){return `<button class="row" data-edit-fuel="${r.id}"><span c
   <span class="t2 num">${r.date.slice(2).replaceAll('-','.')} · ${num(r.liters,2)}L · ${won(r.price)}원/L${r.odo?` · ${num(r.odo)}km`:''}</span></span>
   <span class="amt">${won(r.amount)}원</span></button>`}
 function svcRow(r){return `<button class="row" data-edit-svc="${r.id}"><span class="ico s">${r.kind==='exp'?'지출':'정비'}</span>
-  <span class="main"><span class="t1">${esc(r.title||r.cat)}</span>
+  <span class="main"><span class="t1">${esc(r.title||r.cat)}${r.photos&&r.photos.length?` <span class="pill ok" style="vertical-align:2px">사진 ${r.photos.length}</span>`:''}</span>
   <span class="t2"><span class="num">${r.date.slice(2).replaceAll('-','.')}</span> · ${esc(r.cat)}${r.shop?' · '+esc(r.shop):''}${r.odo?` · <span class="num">${num(r.odo)}km</span>`:''}</span></span>
   <span class="amt">${won(r.amount)}원</span></button>`}
 function renderHome(){
@@ -262,20 +262,20 @@ function renderSet(){
    :u?`<div class="list"><div class="row" style="cursor:default"><span class="main"><span class="t1">${esc(u.email||'')}</span><span class="t2">${Cloud.on?'실시간 동기화 중 · 다른 폰에서도 이 계정으로 로그인하면 같은 기록':Cloud.denied?'이 계정은 사용이 허용되지 않았어요. 허용된 계정으로 다시 로그인해 주세요.':'계정 기록을 불러오는 중'}</span></span><span class="pill ${Cloud.on?'ok':Cloud.denied?'bad':'warn'}">${Cloud.on?'동기화':Cloud.denied?'허용 안 됨':'대기'}</span></div>
       <button class="row" type="button" data-logout="1"><span class="main"><span class="t1">로그아웃</span><span class="t2">이 기기에서만 로그아웃돼요. 기록은 계정에 남아요.</span></span><span class="t2" id="logoutLbl">›</span></button></div>`
    :`<div class="list"><button class="row" type="button" data-login="1"><span class="main"><span class="t1" style="color:var(--accent)">구글로 로그인</span><span class="t2">여러 폰에서 같은 기록을 실시간으로 봐요. 이 기기 기록은 로그인 뒤 계정으로 올릴 수 있어요.</span></span><span class="t2">›</span></button></div>`;
-  const cars=`<div class="list">${G.cars.map(c=>`<button class="row" type="button" data-car-edit="${c.id}"><span class="ico s">${c.id===S.id?'사용':'차량'}</span><span class="main"><span class="t1">${esc(c.car.plate||'번호판 없음')} · ${esc(c.car.name||'내 차')}</span><span class="t2">${esc(c.car.fuel)} · 주유 ${num(c.fuels.length)}건 · 정비 ${num(c.services.length)}건</span></span><span class="t2">수정</span></button>`).join('')}
+  const cars=`<div class="list">${G.cars.map(c=>`<button class="row" type="button" data-car-edit="${c.id}"><span class="ico s">${c.id===S.id?'사용':'차량'}</span><span class="main"><span class="t1">${esc(c.car.plate||'번호판 없음')} · ${esc(c.car.name||'내 차')}</span><span class="t2">${esc(c.car.fuel)} · 주유 ${num(c.fuels.length)}건 · 정비 ${num(c.services.length)}건</span></span><span class="rowbtn">수정</span></button>`).join('')}
     <button class="row" type="button" data-car-new="1"><span class="main"><span class="t1" style="color:var(--accent)">+ 차량 추가</span></span></button></div>`;
   const inst=isStandalone()?'홈 화면에 설치된 앱으로 열려 있어요.':installEvt?'':ios?'Safari 아래쪽 <b>공유 → 홈 화면에 추가</b>를 누르세요.':mob?'Chrome <b>︙ → 홈 화면에 추가 → 설치</b>를 누르세요.':'주소창 오른쪽 끝 <b>설치 아이콘</b>(모니터에 화살표)이나 <b>︙ → 전송, 저장 및 공유 → 페이지를 앱으로 설치</b>를 누르세요.';
   return `<h2>계정·동기화</h2>${acct}
   <h2>차량 관리</h2>${cars}
-  <h2>소모품 교체 주기 · ${esc(S.car.plate||S.car.name)}</h2><div class="list">${orderedRems(S.reminders).map(r=>`<button class="row" data-edit-rem="${r.id}"><span class="main"><span class="t1">${esc(r.name)}</span><span class="t2">${r.km?num(r.km)+'km':''}${r.km&&r.months?' 또는 ':''}${r.months?r.months+'개월':''}마다 · 분류 ‘${esc(r.cat)}’ 기록 기준</span></span><span class="t2">수정</span></button>`).join('')}
+  <h2>소모품 교체 주기 · ${esc(S.car.plate||S.car.name)}</h2><div class="list">${orderedRems(S.reminders).map(r=>`<button class="row" data-edit-rem="${r.id}"><span class="main"><span class="t1">${esc(r.name)}</span><span class="t2">${r.km?num(r.km)+'km':''}${r.km&&r.months?' 또는 ':''}${r.months?r.months+'개월':''}마다 · 분류 ‘${esc(r.cat)}’ 기록 기준</span></span><span class="rowbtn">수정</span></button>`).join('')}
   <button class="row" data-edit-rem="new"><span class="main"><span class="t1" style="color:var(--accent)">+ 교체 주기 추가</span></span></button></div>`+`
   <h2>데이터</h2><div class="list">
     <button class="row" type="button" data-import="1"><span class="main"><span class="t1">엑셀에서 주유 기록 가져오기</span><span class="t2">.xlsx · .xls · .csv — 지금 선택된 차량(${esc(S.car.plate||S.car.name)})으로 들어가요</span></span><span class="t2">›</span></button>
     ${(()=>{const m=AB.meta(),hold=lsGet('chagok.autoHold');return `<div class="row" style="cursor:default"><span class="main"><span class="t1">자동 백업 <span class="pill ${hold?'warn':'ok'}">${hold?'멈춤':'켜짐'}</span></span>
       <span class="t2">${m?`최신 ${esc(fmtAt(m.at))} · 차량 ${num(m.cars)}대 · 기록 ${num(m.records)}건 · ${m.where==='account'?'구글 계정에 보관':'이 기기에 보관'}`:'아직 없음 · 앱을 열면 하루 한 번 자동으로 해요'}${hold?`<br><b style="color:var(--warn)">기록이 크게 줄어(지금 ${num(+hold)}건) 덮어쓰지 않았어요.</b> 일부러 지운 거라면 '지금 자동 백업'을, 실수라면 '자동 백업에서 복구'를 누르세요.`:''}</span></span></div>
     <button class="row" type="button" data-autonow="1"><span class="main"><span class="t1">지금 자동 백업</span><span class="t2">지금 기록으로 자동 백업 칸을 바로 덮어써요 (최신 하나만 남아요)</span></span><span class="t2">›</span></button>
-    <button class="row" type="button" data-autorestore="1"><span class="main"><span class="t1">자동 백업에서 복구</span><span class="t2">자동 백업 내용으로 없어진 기록을 되살려요. 이미 있는 기록은 건너뛰어요</span></span><span class="t2">›</span></button>`})()}
-    <button class="row" type="button" data-backup="1"><span class="main"><span class="t1">백업 파일 저장</span><span class="t2">따로 보관용 파일(차곡차곡_연월일_시분초.json)을 내려받아요 · 마지막 저장: ${esc(lsGet('chagok.lastBackup')||'아직 없음')}</span></span><span class="t2">›</span></button>
+    <button class="row" type="button" data-autorestore="1"><span class="main"><span class="t1">자동 백업에서 복구</span><span class="t2">자동 백업 내용으로 없어진 기록을 되살려요. 지운 서류 사진은 30일 동안 남아 있어서 함께 돌아와요</span></span><span class="t2">›</span></button>`})()}
+    <button class="row" type="button" data-backup="1"><span class="main"><span class="t1">백업 파일 저장</span><span class="t2">서류 사진까지 담은 보관용 파일(차곡차곡_연월일_시분초.json)을 내려받아요 · 마지막 저장: ${esc(lsGet('chagok.lastBackup')||'아직 없음')}</span></span><span class="t2">›</span></button>
     <button class="row" type="button" data-restore="1"><span class="main"><span class="t1">백업에서 복구</span><span class="t2">백업 파일(또는 복사해 둔 백업 내용)로 기록을 되살려요. 이미 있는 기록은 건너뛰어요</span></span><span class="t2">›</span></button>
     ${Cloud&&Cloud.user?'':'<button class="row" type="button" id="resetBtn"><span class="main"><span class="t1" style="color:var(--bad)">이 기기 기록 전체 초기화</span><span class="t2">두 번 눌러야 지워져요</span></span></button>'}</div>
   <h2>앱 설치</h2><div class="list"><div class="rem">${installEvt&&!isStandalone()?'<div class="hd"><span>홈 화면에 설치하면 앱처럼 바로 열려요.</span><button class="btn pri" type="button" data-install="1">설치</button></div>':'<div class="t2" style="font-size:13.5px">'+inst+'</div>'}
@@ -337,17 +337,39 @@ function svcForm(r,kind){
     <label class="f">금액(원)<input id="s_amount" type="number" inputmode="numeric" value="${r.amount}" required></label>
     <label class="f">${r.kind==='exp'?'사용처':'정비소'}<input id="s_shop" type="text" maxlength="60" value="${esc(r.shop)}"></label>
     <label class="f full">메모<input id="s_memo" type="text" maxlength="200" value="${esc(r.memo)}" placeholder="부품명, 다음 점검 사항 등"></label>
+    <div class="full"><div class="hint" style="margin-bottom:6px">서류 사진 <span class="num">(최대 ${PH.MAX}장 · 정비 명세서·영수증 등)</span></div><div class="phs" id="s_photos"></div></div>
     <div class="actions full">${isNew?'<span></span>':`<button type="button" class="btn danger" id="del">삭제</button>`}<div class="r"><button type="button" class="btn" id="cancel">취소</button><button class="btn pri">저장</button></div></div>
   </form>`}
 function bindSvc(r,kind){return el=>{
   const $=id=>el.querySelector('#'+id);let cat=r?.cat||(kind==='exp'?'보험':'엔진오일');
   el.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{cat=b.dataset.cat;el.querySelectorAll('[data-cat]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
   $('cancel').onclick=close;
-  if($('del'))$('del').onclick=()=>{DB.delSvc(r.id);close();render();toast('삭제했어요')};
-  $('sf').onsubmit=e=>{e.preventDefault();
-    const rec={id:r?.id||uid(),kind:r?.kind||kind||'svc',date:$('s_date').value,odo:+$('s_odo').value||0,cat,title:$('s_title').value.trim()||cat,amount:+$('s_amount').value||0,shop:$('s_shop').value.trim(),memo:$('s_memo').value.trim()};
-    if(!r)leaveSample();
-    DB.putSvc(rec);close();render();toast(r?'수정했어요':'정비 기록을 저장했어요')};
+  // 사진: 고른 사진은 저장을 누를 때 올리고, 지운 사진도 저장할 때 반영 (취소하면 아무것도 바뀌지 않음)
+  const carId=S.id,recId=r?.id||uid(),ph={keep:[...(r?.photos||[])],add:[],drop:[]};
+  const drawPh=()=>{const box=$('s_photos');if(!box)return;
+    box.innerHTML=ph.keep.map(id=>`<div class="ph" data-ph="${id}"><img alt="서류 사진" data-thumb="${id}"><button type="button" class="phx" data-phdel="${id}" aria-label="사진 빼기">×</button></div>`).join('')
+      +ph.add.map((a,i)=>`<div class="ph"><img alt="새 서류 사진" src="${a.thumbUrl}"><button type="button" class="phx" data-phnew="${i}" aria-label="사진 빼기">×</button></div>`).join('')
+      +(ph.keep.length+ph.add.length<PH.MAX?`<label class="ph add" for="s_phin"><span>+ 사진</span></label><input id="s_phin" type="file" accept="image/*" multiple hidden>`:'');
+    box.querySelectorAll('[data-thumb]').forEach(img=>PH.thumbUrl(carId,img.dataset.thumb).then(u=>{if(u)img.src=u;else img.alt='사진 없음'}));
+    const inp=$('s_phin');if(inp)inp.onchange=async()=>{const fs=[...inp.files].slice(0,PH.MAX-ph.keep.length-ph.add.length);if(!fs.length)return;
+      toast('사진을 줄이는 중이에요…');
+      for(const f of fs){try{ph.add.push(await PH.prepare(f))}catch(e){toast('이 사진은 읽지 못했어요.')}}drawPh()};
+    box.onclick=e=>{const d=e.target.closest('[data-phdel]'),n=e.target.closest('[data-phnew]'),im=e.target.closest('img');
+      if(d){ph.keep=ph.keep.filter(x=>x!==d.dataset.phdel);ph.drop.push(d.dataset.phdel);drawPh();return}
+      if(n){const a=ph.add.splice(+n.dataset.phnew,1)[0];if(a)URL.revokeObjectURL(a.thumbUrl);drawPh();return}
+      if(im&&im.dataset.thumb)PH.view(carId,im.dataset.thumb,$('s_date').value);
+      else if(im&&im.src)PH.viewBlob(ph.add.find(a=>a.thumbUrl===im.src)?.big,$('s_date').value)}};
+  drawPh();
+  if($('del'))$('del').onclick=()=>{DB.delSvc(r.id);PH.delMany(carId,r.photos||[]);close();render();toast('삭제했어요')};
+  $('sf').onsubmit=async e=>{e.preventDefault();
+    const btn=$('sf').querySelector('button.pri');btn.disabled=true;
+    if(!r)leaveSample();const cid=S.id;   // 예시를 지운 뒤의 실제 차량에 사진을 저장
+    const ids=[...ph.keep];
+    if(ph.add.length){btn.textContent='사진 올리는 중…';
+      for(const a of ph.add){try{ids.push(await PH.save(cid,recId,a))}catch(err){console.warn('[chagok]',err);toast('사진 하나를 저장하지 못했어요.')}}}
+    const rec={id:recId,kind:r?.kind||kind||'svc',date:$('s_date').value,odo:+$('s_odo').value||0,cat,title:$('s_title').value.trim()||cat,amount:+$('s_amount').value||0,shop:$('s_shop').value.trim(),memo:$('s_memo').value.trim(),photos:ids.slice(0,PH.MAX)};
+    DB.putSvc(rec);if(ph.drop.length)PH.delMany(cid,ph.drop);ph.add.forEach(a=>URL.revokeObjectURL(a.thumbUrl));
+    close();render();toast(r?'수정했어요':'정비 기록을 저장했어요')};
 }}
 function busy(){if(Cloud&&Cloud.user&&!Cloud.on&&!Cloud.denied){toast('계정 기록을 불러오는 중이에요. 잠시 뒤 다시 해 주세요.');return true}return false}
 function openAdd(){if(busy())return;
@@ -388,6 +410,62 @@ function openCar(rec){if(busy())return;
       else{rec.car=car;DB.putCar(rec)}
       close();render();toast(isNew?`${car.plate||car.name} 차량을 추가했어요`:'저장했어요')}});
 }
+/* 서류 사진: 크게(긴 쪽 2000px, 850KB 이하)와 작게(목록용 360px) 두 가지로 줄여서 저장
+   - 로그인: 계정의 cars/{차량}/photos/{사진} (사진 저장소 유료 요금제 없이 데이터베이스에 압축 저장)
+   - 로그인 전: 이 기기 안(IndexedDB) · 화면에는 필요할 때만 불러옴 */
+const PH={MAX:5,_u:{},
+  async shrink(src,maxSide,limit){
+    const bmp=await createImageBitmap(src,{imageOrientation:'from-image'});
+    let sc=Math.min(1,maxSide/Math.max(bmp.width,bmp.height)),q=.8,out=null,w=0,h=0;
+    for(let i=0;i<8;i++){w=Math.round(bmp.width*sc);h=Math.round(bmp.height*sc);const c=document.createElement('canvas');c.width=w;c.height=h;
+      const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(bmp,0,0,w,h);
+      out=await new Promise(ok=>c.toBlob(ok,'image/jpeg',q));if(out&&out.size<=limit)break;if(q>.5)q-=.1;else sc*=.8}
+    bmp.close&&bmp.close();if(!out||out.size>limit)throw new Error('too big');return{blob:out,w,h}},
+  async prepare(file){if(!/^image\//.test(file.type)&&!/\.(jpe?g|png|heic|webp)$/i.test(file.name))throw new Error('type');
+    const big=await PH.shrink(file,2000,850000),th=await PH.shrink(big.blob,360,50000);
+    return{big:big.blob,w:big.w,h:big.h,thumb:th.blob,thumbUrl:URL.createObjectURL(th.blob)}},
+  u8:async b=>new Uint8Array(await b.arrayBuffer()),
+  idb(mode,fn){return new Promise((ok,no)=>{const r=indexedDB.open('chagok-photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');
+    r.onsuccess=()=>{const tx=r.result.transaction('p',mode),q=fn(tx.objectStore('p'));tx.oncomplete=()=>ok(q&&q.result);tx.onerror=()=>no(tx.error)};r.onerror=()=>no(r.error)})},
+  cloud:()=>Cloud&&Cloud.on,
+  col:carId=>Cloud.fs.collection('cars').doc(carId).collection('photos'),
+  async save(carId,recId,a){const id=uid();
+    if(PH.cloud()){const B=firebase.firestore.Blob;await PH.col(carId).doc(id).set({id,rec:recId,at:Date.now(),w:a.w,h:a.h,data:B.fromUint8Array(await PH.u8(a.big)),thumb:B.fromUint8Array(await PH.u8(a.thumb))})}
+    else await PH.idb('readwrite',st=>st.put({id,rec:recId,at:Date.now(),w:a.w,h:a.h,data:a.big,thumb:a.thumb},carId+'/'+id));
+    return id},
+  async get(carId,id){
+    if(PH.cloud()){const d=await PH.col(carId).doc(id).get();if(!d.exists)return null;const v=d.data();
+      return{data:new Blob([v.data.toUint8Array()],{type:'image/jpeg'}),thumb:new Blob([v.thumb.toUint8Array()],{type:'image/jpeg'})}}
+    return await PH.idb('readonly',st=>st.get(carId+'/'+id))||null},
+  async thumbUrl(carId,id){const k=carId+'/'+id;if(PH._u[k])return PH._u[k];try{const v=await PH.get(carId,id);if(!v)return null;return PH._u[k]=URL.createObjectURL(v.thumb)}catch(e){return null}},
+  // 지운 사진은 바로 없애지 않고 30일 보관 → 자동 백업·백업 파일로 기록을 되살리면 사진도 같이 돌아옴
+  trash(){try{return JSON.parse(lsGet('chagok.phTrash'))||[]}catch(e){return[]}},
+  delMany(carId,ids){if(!ids||!ids.length)return;const t=PH.trash(),m=PH.cloud()?'a':'d';
+    ids.forEach(id=>{delete PH._u[carId+'/'+id];t.push({c:carId,id,m,at:Date.now()})});lsSet('chagok.phTrash',JSON.stringify(t.slice(-500)))},
+  async purge(){const t=PH.trash(),old=Date.now()-30*864e5,keep=[];
+    for(const x of t){if(x.at>old){keep.push(x);continue}
+      try{if(x.m==='a'){if(!PH.cloud()){keep.push(x);continue}await PH.col(x.c).doc(x.id).delete()}else await PH.idb('readwrite',st=>st.delete(x.c+'/'+x.id))}catch(e){keep.push(x)}}
+    lsSet('chagok.phTrash',JSON.stringify(keep))},
+  untrash(carId,id){lsSet('chagok.phTrash',JSON.stringify(PH.trash().filter(x=>!(x.c===carId&&x.id===id))))},
+  async has(carId,id){try{return !!(await PH.get(carId,id))}catch(e){return false}},
+  async putWithId(carId,id,recId,v){   // 백업에서 되살릴 때: 원래 사진 번호 그대로
+    if(PH.cloud()){const B=firebase.firestore.Blob;await PH.col(carId).doc(id).set({id,rec:recId,at:Date.now(),w:N(v.w),h:N(v.h),data:B.fromUint8Array(v.data),thumb:B.fromUint8Array(v.thumb)})}
+    else await PH.idb('readwrite',st=>st.put({id,rec:recId,at:Date.now(),w:N(v.w),h:N(v.h),data:new Blob([v.data],{type:'image/jpeg'}),thumb:new Blob([v.thumb],{type:'image/jpeg'})},carId+'/'+id))},
+  b64:u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)},
+  unb64:t=>{const b=atob(t),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u},
+  async view(carId,id,date){const v=await PH.get(carId,id).catch(()=>null);if(!v){toast('사진을 찾을 수 없어요.');return}PH.viewBlob(v.data,date)},
+  viewBlob(blob,date){if(!blob)return;const url=URL.createObjectURL(blob);PH.closeView();
+    const el=document.createElement('div');el.id='phView';el.className='phview';el.setAttribute('role','dialog');el.setAttribute('aria-label','서류 사진');
+    el.innerHTML=`<div class="phbar"><button type="button" class="btn" data-pv="zoom">크게 보기</button><button type="button" class="btn" data-pv="save">사진 저장</button><button type="button" class="btn pri" data-pv="close">닫기</button></div><div class="phimg"><img alt="서류 사진" src="${url}"></div>`;
+    document.body.appendChild(el);
+    el.onclick=e=>{const b=e.target.closest('[data-pv]');const k=b?b.dataset.pv:(e.target.tagName==='IMG'?'zoom':'');
+      if(k==='close')PH.closeView();
+      else if(k==='zoom'){el.classList.toggle('zoom');const z=el.querySelector('[data-pv="zoom"]');z.textContent=el.classList.contains('zoom')?'화면에 맞추기':'크게 보기'}
+      else if(k==='save'){const a=document.createElement('a');a.href=url;a.download=`차곡차곡_서류_${String(date||today()).replaceAll('-','')}.jpg`;document.body.appendChild(a);a.click();a.remove()}};
+    el._url=url},
+  closeView(){const v=document.getElementById('phView');if(v){URL.revokeObjectURL(v._url);v.remove();return true}return false}
+};
+
 /* 자동 백업: 하루 한 번(그날 처음 열 때) 백업 칸 하나에 덮어씀 → 항상 최신 하나만 남음
    - 로그인: 계정 안 백업 칸(backups/계정) · 로그인 전: 이 기기 안(IndexedDB)
    - 안전장치: 기록이 직전 백업보다 30% 넘게 줄었으면 덮어쓰지 않고 알림 (실수로 지운 경우 보호) */
@@ -412,7 +490,7 @@ const AB={
       if(where==='account'){const z=await AB.gz(json);if(z.length>900000){toast('기록이 너무 많아 자동 백업을 못 했어요. 백업 파일 저장을 이용해 주세요.');return false}
         await Cloud.fs.collection('backups').doc(Cloud.user.uid).set({at:Date.now(),version:APP_VERSION,cars:data.cars.length,records:n,data:firebase.firestore.Blob.fromUint8Array(z)})}
       else await AB.idb('readwrite',st=>st.put({at,json},'latest'));
-      lsSet('chagok.autoMeta',JSON.stringify({at,where,cars:data.cars.length,records:n}));lsSet('chagok.autoHold','');if(tab==='set')render();return true}
+      lsSet('chagok.autoMeta',JSON.stringify({at,where,cars:data.cars.length,records:n}));PH.purge().catch(()=>{});lsSet('chagok.autoHold','');if(tab==='set')render();return true}
     finally{AB.busy=false}},
   async load(){
     if(Cloud&&Cloud.on){const d=await Cloud.fs.collection('backups').doc(Cloud.user.uid).get({source:'server'});if(!d.exists)return null;const v=d.data();
@@ -430,18 +508,32 @@ function backupData(){return{app:'chagok',format:1,version:APP_VERSION,exportedA
   cars:G.cars.map(c=>({id:c.id,order:c.order||0,car:c.car,reminders:c.reminders,fuels:c.fuels,services:c.services}))}}
 /* 백업 파일 이름: 차곡차곡_연월일_시분초.json (예: 차곡차곡_20261028_192030.json) */
 function backupName(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `차곡차곡_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.json`}
-function saveBackup(){
+async function saveBackup(){
   if(G.sample){toast('지금은 예시 기록이라 백업할 내용이 없어요.');return}
-  try{const blob=new Blob([JSON.stringify(backupData(),null,1)],{type:'application/json'});const a=document.createElement('a');
+  if(saveBackup.busy)return;saveBackup.busy=true;
+  try{const data=backupData();data.format=2;let nP=0,miss=0;
+    const total=data.cars.reduce((a,c)=>a+c.services.reduce((b,r)=>b+(r.photos||[]).length,0),0);
+    if(total)toast(`서류 사진 ${total}장을 함께 담는 중이에요…`);
+    for(const c of data.cars){c.photos={};
+      for(const r of c.services)for(const pid of (r.photos||[])){
+        try{const v=await PH.get(c.id,pid);if(!v){miss++;continue}
+          c.photos[pid]={rec:r.id,w:v.w||0,h:v.h||0,data:PH.b64(new Uint8Array(await v.data.arrayBuffer())),thumb:PH.b64(new Uint8Array(await v.thumb.arrayBuffer()))};nP++}catch(e){miss++}}}
+    const blob=new Blob([JSON.stringify(data)],{type:'application/json'});const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);a.download=backupName();document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);lsSet('chagok.lastBackup',today());render();toast('백업 파일을 저장했어요 (다운로드 폴더)')}
-  catch(e){toast('백업 파일을 만들지 못했어요.')}}
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);lsSet('chagok.lastBackup',today());render();
+    toast(`백업 파일을 저장했어요 (다운로드 폴더)${nP?` · 사진 ${nP}장 포함`:''}${miss?` · 못 담은 사진 ${miss}장`:''}`)}
+  catch(e){console.warn('[chagok]',e);toast('백업 파일을 만들지 못했어요.')}
+  finally{saveBackup.busy=false}}
 function parseBackup(txt){let o;try{o=JSON.parse(txt)}catch(e){return null}
   let cars=null;
   if(o&&Array.isArray(o.cars))cars=o.cars;                        // 백업 파일 · 이 기기 저장 형식
   else if(o&&o.car&&(Array.isArray(o.fuels)||Array.isArray(o.services)))cars=[o]; // 예전 '백업 내용 복사'(차 한 대)
   if(!cars)return null;
-  cars=keep(cars.slice(0,20).map(c=>c&&normCar({...c,id:ID_RE.test(c.id)?c.id:uid()})));
+  const B64=/^[A-Za-z0-9+/=]+$/;
+  cars=keep(cars.slice(0,20).map(c=>{if(!c)return null;const n=normCar({...c,id:ID_RE.test(c.id)?c.id:uid()});if(!n)return null;n._ph={};
+    if(c.photos&&typeof c.photos==='object'&&!Array.isArray(c.photos))for(const[k,v]of Object.entries(c.photos).slice(0,500)){
+      if(ID_RE.test(k)&&v&&typeof v.data==='string'&&typeof v.thumb==='string'&&v.data.length<1300000&&v.thumb.length<90000&&B64.test(v.data)&&B64.test(v.thumb))n._ph[k]={w:v.w,h:v.h,data:v.data,thumb:v.thumb}}
+    return n}));
   return cars.length?cars:null}
 const plateKey=p=>String(p||'').replace(/\s/g,'');
 function restorePlan(cars){return cars.map(bc=>{
@@ -458,7 +550,7 @@ function openRestore(pre){if(busy())return;
     let total=0;
     if(st.cars){const plan=restorePlan(st.cars);total=plan.reduce((a,p)=>a+p.nf.length+p.ns.length,0)+plan.filter(p=>!p.t).length;
       h+=`<h2>미리보기</h2><div class="list">${plan.map(p=>`<div class="row" style="cursor:default"><span class="main"><span class="t1">${esc(p.bc.car.plate||'번호판 없음')} · ${esc(p.bc.car.name||'내 차')}</span>
-        <span class="t2">${p.t?`기존 차량에 합침 · 새 주유 ${num(p.nf.length)}건 · 새 정비 ${num(p.ns.length)}건`:`새 차량으로 추가 · 주유 ${num(p.nf.length)}건 · 정비 ${num(p.ns.length)}건`}</span></span></div>`).join('')}</div>
+        <span class="t2">${p.t?`기존 차량에 합침 · 새 주유 ${num(p.nf.length)}건 · 새 정비 ${num(p.ns.length)}건`:`새 차량으로 추가 · 주유 ${num(p.nf.length)}건 · 정비 ${num(p.ns.length)}건`}${Object.keys(p.bc._ph||{}).length?` · 사진 ${Object.keys(p.bc._ph).length}장 들어 있음`:''}</span></span></div>`).join('')}</div>
         ${G.sample?'<div class="hint">복구하면 지금 보이는 예시 기록은 지워져요.</div>':''}${Cloud&&Cloud.on?'<div class="hint">구글 계정에 바로 저장돼요.</div>':''}`}
     h+=`<div class="actions"><span></span><div class="r"><button type="button" class="btn" id="cancel">닫기</button>${st.cars?`<button type="button" class="btn pri" id="rs_go" ${total?'':'disabled'}>${total?'복구하기':'새로 더할 기록 없음'}</button>`:''}</div></div>`;return h};
   const draw=()=>{const sh=root.querySelector('.sheet');if(sh){sh.innerHTML=html();bind(root)}else openSheet(html(),bind)};
@@ -470,14 +562,18 @@ function openRestore(pre){if(busy())return;
       if(Cloud&&Cloud.on&&!navigator.onLine){toast('인터넷에 연결된 뒤 복구해 주세요.');return}
       go.disabled=true;go.textContent='복구하는 중…';
       const plan=restorePlan(st.cars);if(G.sample){G={sample:false,remV:2,cur:null,cars:[]}}
-      let nC=0,nR=0;
+      let nC=0,nR=0,nP=0;
       try{for(const p of plan){
           let tgt=p.t;
           if(!tgt){tgt={id:uid(),car:p.bc.car,reminders:p.bc.reminders.length?p.bc.reminders:defaultReminders(),fuels:[],services:[],order:G.cars.length};
             if(Cloud&&Cloud.on)await Cloud.addCar(tgt,true);G.cars.push(tgt);nC++}
           if(Cloud&&Cloud.on){await Cloud.bulk(tgt.id,'fuels',p.nf,true);await Cloud.bulk(tgt.id,'services',p.ns,true)}
-          tgt.fuels.push(...p.nf);tgt.services.push(...p.ns);nR+=p.nf.length+p.ns.length}
-        if(!G.cars.length)G.cars=[blank()];pick();save();close();render();toast(`복구했어요 · 차량 ${nC}대 추가 · 기록 ${num(nR)}건 추가`)}
+          tgt.fuels.push(...p.nf);tgt.services.push(...p.ns);nR+=p.nf.length+p.ns.length;
+          // 서류 사진: 백업 파일에 들어 있고 지금 없는 사진만 되살림 (자동 백업은 계정·기기에 남아 있는 사진을 그대로 연결)
+          for(const r of p.bc.services)for(const pid of (r.photos||[])){const v=p.bc._ph&&p.bc._ph[pid];PH.untrash(tgt.id,pid);if(!v)continue;
+            if(await PH.has(tgt.id,pid))continue;go.textContent=`사진 되살리는 중… ${nP+1}`;
+            try{await PH.putWithId(tgt.id,pid,r.id,{w:v.w,h:v.h,data:PH.unb64(v.data),thumb:PH.unb64(v.thumb)});nP++}catch(e){console.warn('[chagok]',e)}}}
+        if(!G.cars.length)G.cars=[blank()];pick();save();close();render();toast(`복구했어요 · 차량 ${nC}대 추가 · 기록 ${num(nR)}건 추가${nP?` · 사진 ${nP}장`:''}`)}
       catch(e){console.warn('[chagok]',e);if(!G.cars.length)G.cars=[blank()];pick();save();render();go.disabled=false;go.textContent='다시 복구하기';toast('복구하다 멈췄어요. 인터넷을 확인하고 다시 눌러 주세요. (이미 들어간 기록은 다시 넣지 않아요)')}}}
   draw()}
 
@@ -633,7 +729,7 @@ function startCloud(){
     async delCar(c){
       if(c.owner&&c.owner!==this.user.uid){toast('이 차량은 만든 사람만 지울 수 있어요.');return}
       this.deleting.add(c.id);(this.subs[c.id]||[]).forEach(f=>f());delete this.subs[c.id];delete this.cars[c.id];
-      try{for(const k of ['fuels','services']){const snap=await this.col(c.id,k).get();for(let i=0;i<snap.docs.length;i+=400){const b=this.fs.batch();snap.docs.slice(i,i+400).forEach(d=>b.delete(d.ref));await b.commit()}}
+      try{for(const k of ['fuels','services','photos']){const snap=await this.col(c.id,k).get();for(let i=0;i<snap.docs.length;i+=400){const b=this.fs.batch();snap.docs.slice(i,i+400).forEach(d=>b.delete(d.ref));await b.commit()}}
         await this.fs.collection('cars').doc(c.id).delete()}catch(e){this.err(e);this.deleting.delete(c.id)}
     },
     async bulk(carId,k,list,strict){
@@ -707,6 +803,7 @@ if('serviceWorker' in navigator)window.addEventListener('load',()=>{navigator.se
   const disarm=()=>{if(armT){clearTimeout(armT);armT=null;guard()}};
   document.addEventListener('click',disarm,true);
   window.addEventListener('popstate',()=>{
+    if(PH.closeView()){guard();return}
     if(root.querySelector('.sheet')){close();guard();return}
     if(tab!=='home'){tab='home';render();window.scrollTo(0,0);guard();return}
     toast('한 번 더 누르면 종료돼요');

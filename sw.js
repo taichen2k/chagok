@@ -3,7 +3,7 @@
      /chagok/ 폴더 요청만 처리, 'chagok-'로 시작하는 보관 파일만 지움
    - 알림(push)은 다루지 않음 — 할수있어 알림과 섞이지 않게
    - 계정 기록(Firebase)은 보관하지 않음. 화면 파일만 보관 */
-const CACHE='chagok-v20';
+const CACHE='chagok-v21';
 const SHELL=['./','./index.html','./style.css','./app.js','./firebase-config.js','./manifest.webmanifest','./favicon.svg','./logo.svg','./icon-192.png',
   './fonts/Pretendard-Regular.subset.woff2','./fonts/Pretendard-Medium.subset.woff2','./fonts/Pretendard-SemiBold.subset.woff2','./fonts/Pretendard-Bold.subset.woff2'];
 // 하나가 실패해도 나머지는 보관 (전부 실패하지 않게)
