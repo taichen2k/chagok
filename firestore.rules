@@ -38,6 +38,14 @@ service cloud.firestore {
         && str(d.cat, 20) && str(d.get('title', ''), 80) && str(d.get('shop', ''), 60) && str(d.get('memo', ''), 200);
     }
 
+    // 자동 백업 칸: 계정마다 하나(덮어쓰기 → 최신 하나만), 본인만 읽고 씀, 900KB 이하
+    match /backups/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['at', 'version', 'cars', 'records', 'data'])
+        && request.resource.data.at is int && request.resource.data.data is bytes && request.resource.data.data.size() < 900000
+        && str(request.resource.data.version, 10) && num(request.resource.data.cars) && num(request.resource.data.records);
+    }
     match /cars/{carId} {
       allow read: if signedIn() && request.auth.uid in resource.data.members;
       allow create: if signedIn() && idOk(carId)

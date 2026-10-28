@@ -1,7 +1,7 @@
 
 /* 차곡차곡 — © 2026 티제이컴퍼니. 개발·버전 이력: 기획요건.md
    같은 주소(taichen2k.github.io)의 다른 앱과 섞이지 않게 저장 이름은 모두 chagok. 으로 시작 */
-const APP_VERSION='v19';
+const APP_VERSION='v20';
 const KEY='chagok.data';
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
@@ -80,11 +80,11 @@ if((G.remV||0)<2){G.cars.forEach(c=>{const d=defaultReminders();
 function save(){if(Cloud&&Cloud.on){lsSet('chagok.cur',G.cur||'');return}lsSet(KEY,JSON.stringify(G))}
 /* 기록 바꾸기는 모두 여기로: 이 기기에 저장하고, 로그인 상태면 계정에도 저장 */
 const DB={
-  putFuel(rec){const i=S.fuels.findIndex(x=>x.id===rec.id);if(i>=0)S.fuels[i]=rec;else S.fuels.push(rec);save();if(Cloud&&Cloud.on)Cloud.put(S.id,'fuels',rec)},
-  delFuel(id){S.fuels=S.fuels.filter(x=>x.id!==id);save();if(Cloud&&Cloud.on)Cloud.del(S.id,'fuels',id)},
-  putSvc(rec){const i=S.services.findIndex(x=>x.id===rec.id);if(i>=0)S.services[i]=rec;else S.services.push(rec);save();if(Cloud&&Cloud.on)Cloud.put(S.id,'services',rec)},
-  delSvc(id){S.services=S.services.filter(x=>x.id!==id);save();if(Cloud&&Cloud.on)Cloud.del(S.id,'services',id)},
-  putCar(c){save();if(Cloud&&Cloud.on)Cloud.putCar(c)},
+  putFuel(rec){const i=S.fuels.findIndex(x=>x.id===rec.id);if(i>=0)S.fuels[i]=rec;else S.fuels.push(rec);save();AB.later();if(Cloud&&Cloud.on)Cloud.put(S.id,'fuels',rec)},
+  delFuel(id){S.fuels=S.fuels.filter(x=>x.id!==id);save();AB.later();if(Cloud&&Cloud.on)Cloud.del(S.id,'fuels',id)},
+  putSvc(rec){const i=S.services.findIndex(x=>x.id===rec.id);if(i>=0)S.services[i]=rec;else S.services.push(rec);save();AB.later();if(Cloud&&Cloud.on)Cloud.put(S.id,'services',rec)},
+  delSvc(id){S.services=S.services.filter(x=>x.id!==id);save();AB.later();if(Cloud&&Cloud.on)Cloud.del(S.id,'services',id)},
+  putCar(c){save();AB.later();if(Cloud&&Cloud.on)Cloud.putCar(c)},
   addCar(n){n.order=G.sample?0:G.cars.length;if(G.sample)G={sample:false,remV:2,cur:n.id,cars:[n]};else G.cars.push(n);G.cur=n.id;pick();save();if(Cloud&&Cloud.on)Cloud.addCar(n)},
   delCar(c){G.cars=G.cars.filter(x=>x!==c);G.cur=null;pick();save();if(Cloud&&Cloud.on)Cloud.delCar(c)},
   bulkFuels(list){S.fuels.push(...list);save();if(Cloud&&Cloud.on)Cloud.bulk(S.id,'fuels',list)}
@@ -271,7 +271,11 @@ function renderSet(){
   <button class="row" data-edit-rem="new"><span class="main"><span class="t1" style="color:var(--accent)">+ 교체 주기 추가</span></span></button></div>`+`
   <h2>데이터</h2><div class="list">
     <button class="row" type="button" data-import="1"><span class="main"><span class="t1">엑셀에서 주유 기록 가져오기</span><span class="t2">.xlsx · .xls · .csv — 지금 선택된 차량(${esc(S.car.plate||S.car.name)})으로 들어가요</span></span><span class="t2">›</span></button>
-    <button class="row" type="button" data-backup="1"><span class="main"><span class="t1">백업 파일 저장</span><span class="t2">모든 차량의 기록을 파일 하나(차곡차곡_연월일_시분초.json)로 내려받아요 · 마지막 백업: ${esc(lsGet('chagok.lastBackup')||'아직 없음')}</span></span><span class="t2">›</span></button>
+    ${(()=>{const m=AB.meta(),hold=lsGet('chagok.autoHold');return `<div class="row" style="cursor:default"><span class="main"><span class="t1">자동 백업 <span class="pill ${hold?'warn':'ok'}">${hold?'멈춤':'켜짐'}</span></span>
+      <span class="t2">${m?`최신 ${esc(fmtAt(m.at))} · 차량 ${num(m.cars)}대 · 기록 ${num(m.records)}건 · ${m.where==='account'?'구글 계정에 보관':'이 기기에 보관'}`:'아직 없음 · 앱을 열면 하루 한 번 자동으로 해요'}${hold?`<br><b style="color:var(--warn)">기록이 크게 줄어(지금 ${num(+hold)}건) 덮어쓰지 않았어요.</b> 일부러 지운 거라면 '지금 자동 백업'을, 실수라면 '자동 백업에서 복구'를 누르세요.`:''}</span></span></div>
+    <button class="row" type="button" data-autonow="1"><span class="main"><span class="t1">지금 자동 백업</span><span class="t2">지금 기록으로 자동 백업 칸을 바로 덮어써요 (최신 하나만 남아요)</span></span><span class="t2">›</span></button>
+    <button class="row" type="button" data-autorestore="1"><span class="main"><span class="t1">자동 백업에서 복구</span><span class="t2">자동 백업 내용으로 없어진 기록을 되살려요. 이미 있는 기록은 건너뛰어요</span></span><span class="t2">›</span></button>`})()}
+    <button class="row" type="button" data-backup="1"><span class="main"><span class="t1">백업 파일 저장</span><span class="t2">따로 보관용 파일(차곡차곡_연월일_시분초.json)을 내려받아요 · 마지막 저장: ${esc(lsGet('chagok.lastBackup')||'아직 없음')}</span></span><span class="t2">›</span></button>
     <button class="row" type="button" data-restore="1"><span class="main"><span class="t1">백업에서 복구</span><span class="t2">백업 파일(또는 복사해 둔 백업 내용)로 기록을 되살려요. 이미 있는 기록은 건너뛰어요</span></span><span class="t2">›</span></button>
     ${Cloud&&Cloud.user?'':'<button class="row" type="button" id="resetBtn"><span class="main"><span class="t1" style="color:var(--bad)">이 기기 기록 전체 초기화</span><span class="t2">두 번 눌러야 지워져요</span></span></button>'}</div>
   <h2>앱 설치</h2><div class="list"><div class="rem">${installEvt&&!isStandalone()?'<div class="hd"><span>홈 화면에 설치하면 앱처럼 바로 열려요.</span><button class="btn pri" type="button" data-install="1">설치</button></div>':'<div class="t2" style="font-size:13.5px">'+inst+'</div>'}
@@ -384,6 +388,43 @@ function openCar(rec){if(busy())return;
       else{rec.car=car;DB.putCar(rec)}
       close();render();toast(isNew?`${car.plate||car.name} 차량을 추가했어요`:'저장했어요')}});
 }
+/* 자동 백업: 하루 한 번(그날 처음 열 때) 백업 칸 하나에 덮어씀 → 항상 최신 하나만 남음
+   - 로그인: 계정 안 백업 칸(backups/계정) · 로그인 전: 이 기기 안(IndexedDB)
+   - 안전장치: 기록이 직전 백업보다 30% 넘게 줄었으면 덮어쓰지 않고 알림 (실수로 지운 경우 보호) */
+const AB={
+  meta(){try{return JSON.parse(lsGet('chagok.autoMeta'))||null}catch(e){return null}},
+  count(d){return d.cars.reduce((s,c)=>s+c.fuels.length+c.services.length,0)},
+  async gz(str){const z=new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('gzip')));return new Uint8Array(await z.arrayBuffer())},
+  async gunz(u8){return new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'))).text()},
+  idb(mode,fn){return new Promise((ok,no)=>{const r=indexedDB.open('chagok-backup',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');
+    r.onsuccess=()=>{const tx=r.result.transaction('kv',mode),q=fn(tx.objectStore('kv'));tx.oncomplete=()=>ok(q&&q.result);tx.onerror=()=>no(tx.error)};r.onerror=()=>no(r.error)})},
+  later(){clearTimeout(AB._t);AB._t=setTimeout(()=>AB.run(false).catch(e=>console.warn('[chagok] 자동 백업',e)),6000)},
+  async run(force){
+    if(G.sample||AB.busy)return false;
+    if(Cloud&&Cloud.user&&!Cloud.on)return false;                       // 계정 불러오는 중
+    if(Cloud&&Cloud.on){for(let i=0;i<20&&!Cloud.allLoaded();i++)await new Promise(r=>setTimeout(r,1000));if(!Cloud.allLoaded())return false}
+    const m=AB.meta(),where=Cloud&&Cloud.on?'account':'device';
+    if(!force&&m&&m.where===where&&m.at&&m.at.slice(0,10)===today())return false;   // 오늘 이미 함
+    const data=backupData(),n=AB.count(data);
+    if(!force&&m&&m.where===where&&m.records>=20&&n<m.records*0.7){lsSet('chagok.autoHold',String(n));render();toast('기록이 크게 줄어 자동 백업을 잠시 멈췄어요. 설정 → 데이터에서 확인해 주세요.');return false}
+    AB.busy=true;
+    try{const json=JSON.stringify(data),at=new Date().toISOString();
+      if(where==='account'){const z=await AB.gz(json);if(z.length>900000){toast('기록이 너무 많아 자동 백업을 못 했어요. 백업 파일 저장을 이용해 주세요.');return false}
+        await Cloud.fs.collection('backups').doc(Cloud.user.uid).set({at:Date.now(),version:APP_VERSION,cars:data.cars.length,records:n,data:firebase.firestore.Blob.fromUint8Array(z)})}
+      else await AB.idb('readwrite',st=>st.put({at,json},'latest'));
+      lsSet('chagok.autoMeta',JSON.stringify({at,where,cars:data.cars.length,records:n}));lsSet('chagok.autoHold','');if(tab==='set')render();return true}
+    finally{AB.busy=false}},
+  async load(){
+    if(Cloud&&Cloud.on){const d=await Cloud.fs.collection('backups').doc(Cloud.user.uid).get({source:'server'});if(!d.exists)return null;const v=d.data();
+      return{text:await AB.gunz(v.data.toUint8Array()),at:new Date(v.at).toISOString()}}
+    const v=await AB.idb('readonly',st=>st.get('latest'));return v?{text:v.json,at:v.at}:null}
+};
+const fmtAt=iso=>{try{const d=new Date(iso),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`}catch(e){return ''}};
+async function restoreFromAuto(){if(busy())return;
+  try{const b=await AB.load();if(!b){toast('아직 자동 백업이 없어요.');return}openRestore({text:b.text,name:'자동 백업 · '+fmtAt(b.at)})}
+  catch(e){console.warn('[chagok]',e);toast('자동 백업을 불러오지 못했어요. 인터넷을 확인해 주세요.')}}
+async function autoNow(){toast('자동 백업을 하는 중이에요…');const ok=await AB.run(true).catch(()=>false);toast(ok?'자동 백업을 최신으로 바꿨어요':'지금은 자동 백업을 할 수 없어요. 잠시 뒤 다시 해 주세요.')}
+
 /* 백업 · 복구 */
 function backupData(){return{app:'chagok',format:1,version:APP_VERSION,exportedAt:new Date().toISOString(),
   cars:G.cars.map(c=>({id:c.id,order:c.order||0,car:c.car,reminders:c.reminders,fuels:c.fuels,services:c.services}))}}
@@ -407,8 +448,8 @@ function restorePlan(cars){return cars.map(bc=>{
   const t=G.sample?null:(G.cars.find(c=>c.id===bc.id)||(plateKey(bc.car.plate)&&G.cars.find(c=>plateKey(c.car.plate)===plateKey(bc.car.plate))));
   const nf=t?bc.fuels.filter(r=>!t.fuels.some(x=>x.id===r.id)):bc.fuels,ns=t?bc.services.filter(r=>!t.services.some(x=>x.id===r.id)):bc.services;
   return{bc,t,nf,ns}})}
-function openRestore(){if(busy())return;
-  const st={cars:null,err:'',name:''};
+function openRestore(pre){if(busy())return;
+  const st={cars:pre?parseBackup(pre.text):null,err:'',name:pre?pre.name:''};
   const html=()=>{let h=`<h3>백업에서 복구</h3><div class="hint">백업 파일(.json)을 고르거나, 복사해 둔 백업 내용을 붙여 넣으세요. 이미 있는 기록은 건너뛰고 <b>없는 기록만</b> 더해요. 지우는 것은 없어요.</div>
     <label class="f" style="margin-top:12px">백업 파일<input id="rs_file" type="file" accept=".json,application/json,text/plain"></label>
     <label class="f" style="margin-top:10px">또는 백업 내용 붙여넣기<textarea id="rs_text" rows="3" placeholder='{"app":"chagok", ...}'></textarea></label>`;
@@ -521,7 +562,9 @@ document.getElementById('carChips').onclick=e=>{const b=e.target.closest('[data-
   if(b.dataset.car!==S.id){G.cur=b.dataset.car;pick();save();fuelFilter='all';svcFilter='전체';render();window.scrollTo(0,0);toast(`${S.car.plate||S.car.name}(으)로 바꿨어요`)}};
 document.getElementById('clearSample').onclick=()=>{G={sample:false,remV:2,cur:null,cars:[blank()]};pick();save();render();toast('예시를 지웠어요. 첫 기록을 남겨보세요')};
 view.addEventListener('click',e=>{
-  const t=e.target.closest('[data-edit-fuel],[data-edit-svc],[data-edit-rem],[data-ff],[data-sf],[data-import],[data-login],[data-logout],[data-car-edit],[data-car-new],[data-install],[data-backup],[data-restore],#resetBtn');if(!t)return;
+  const t=e.target.closest('[data-edit-fuel],[data-edit-svc],[data-edit-rem],[data-ff],[data-sf],[data-import],[data-login],[data-logout],[data-car-edit],[data-car-new],[data-install],[data-backup],[data-restore],[data-autonow],[data-autorestore],#resetBtn');if(!t)return;
+  if(t.dataset.autonow){autoNow();return}
+  if(t.dataset.autorestore){restoreFromAuto();return}
   if(t.dataset.backup){saveBackup();return}
   if(t.dataset.restore){openRestore();return}
   if(t.dataset.login){Cloud&&Cloud.login();return}
@@ -541,6 +584,7 @@ view.addEventListener('click',e=>{
 });
 render();
 startCloud();
+setTimeout(()=>{if(!(Cloud&&Cloud.user))AB.later()},4000);
 
 /* ───────── 구글 로그인 · 실시간 동기화 (Firebase 프로젝트 chagok-8ec44) ─────────
    데이터 구조: cars/{차량} {owner, members[], car, reminders, order}
@@ -603,7 +647,7 @@ function startCloud(){
         snap.forEach(d=>{if(this.deleting.has(d.id))return;seen.add(d.id);if(!ID_RE.test(d.id))return;const v=d.data();const c=this.cars[d.id]||(this.cars[d.id]={id:d.id,fuels:[],services:[]});
           c.car=normCarInfo(v.car||{name:'내 차'});c.reminders=Array.isArray(v.reminders)?keep(v.reminders.map(normRem)):defaultReminders();
           c.order=N(v.order);c.owner=v.owner;c.members=v.members||[];c.created=v.createdAt||0;
-          if(!this.subs[d.id])this.subs[d.id]=['fuels','services'].map(k=>d.ref.collection(k).onSnapshot(s=>{c[k]=keep(s.docs.map(x=>(k==='fuels'?normFuel:normSvc)(x.data())));this.rebuild()},e=>console.warn('[chagok]',e)));
+          if(!this.subs[d.id])this.subs[d.id]=['fuels','services'].map(k=>d.ref.collection(k).onSnapshot({includeMetadataChanges:true},s=>{c[k]=keep(s.docs.map(x=>(k==='fuels'?normFuel:normSvc)(x.data())));if(!s.metadata.fromCache)c['_'+k]=1;this.rebuild()},e=>console.warn('[chagok]',e)));
         });
         for(const id of Object.keys(this.cars))if(!seen.has(id)){(this.subs[id]||[]).forEach(f=>f());delete this.subs[id];delete this.cars[id]}
         if(snap.metadata.fromCache&&snap.empty)return; // 서버 답을 기다림
@@ -614,7 +658,8 @@ function startCloud(){
     },
     stop(){if(this.carsUnsub)this.carsUnsub();Object.values(this.subs).forEach(a=>a.forEach(f=>f()));this.subs={};this.cars={};this.carsUnsub=null;this.loading=false;
       if(this.on){this.on=false;location.reload()}},
-    switchOn(){this.on=true;G={cloud:true,remV:2,cur:lsGet('chagok.cur')||null,cars:[]};this.rebuild()},
+    switchOn(){this.on=true;G={cloud:true,remV:2,cur:lsGet('chagok.cur')||null,cars:[]};this.rebuild();AB.later()},
+    allLoaded(){return Object.values(this.cars).length>0&&Object.values(this.cars).every(c=>c._fuels&&c._services)},
     rebuild(){if(!this.on)return;
       const list=Object.values(this.cars).sort((a,b)=>(a.order-b.order)||(a.created-b.created));
       if(!list.length){this.ensureFirst();return}
