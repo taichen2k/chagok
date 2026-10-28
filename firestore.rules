@@ -1,12 +1,14 @@
 rules_version = '2';
-// 차곡차곡 보안 규칙 (v16)
+// 차곡차곡 보안 규칙 (v17) — 허용된 구글 계정만 사용
 // - 차량(cars)은 members에 들어 있는 사람만 읽고 씀
 // - 차량을 만들 때 members는 만든 사람 자신 하나만 (남을 끼워 넣을 수 없음)
 // - 수정할 때 owner·members는 바꿀 수 없음 (가족 공유는 나중에 별도 규칙으로)
 // - 정해진 항목만, 정해진 길이·형식만 저장 (아무 내용이나 큰 문서를 넣지 못하게)
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
+    // 사용 허용 계정 (가족을 추가하려면 여기에 이메일을 더함)
+    function users() { return ['taichen2k@gmail.com']; }
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true && request.auth.token.email in users(); }
     function carDoc(carId) { return get(/databases/$(database)/documents/cars/$(carId)).data; }
     function isMember(carId) { return signedIn() && request.auth.uid in carDoc(carId).members; }
     function str(v, n) { return v is string && v.size() <= n; }
